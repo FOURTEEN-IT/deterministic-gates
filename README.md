@@ -457,12 +457,19 @@ feature:
      first slice has been carried all the way through — split, implemented
      (step 3) and accepted (step 4) — before the next sibling is even looked
      at.
-   - How "vertical" gets checked deterministically isn't decided yet; for
-     now it's the skill's (or a human's) judgment call.
+   - **Open point:** how "vertical" gets checked deterministically isn't
+     decided yet; for now it's the skill's (or a human's) judgment call.
+   - **Open point:** how "unsplittable" gets checked deterministically isn't
+     decided either. `sliceStructure` verifies that a slice's `Status`
+     matches what's on disk (no children where "ready", children where
+     "needs splitting"), but that only checks the status *label* is
+     consistent — it never verifies that a slice marked "ready" actually
+     *is* unsplittable. A slice far too large to implement in one sitting,
+     mislabeled "ready" by the skill or by hand, passes the gate exactly
+     the same as a genuinely minimal one.
 
    The `sliceStructure` and `sliceCoverage` gates check what *can* already
-   be checked deterministically without solving the vertical-check problem
-   first:
+   be checked deterministically without solving either open point above:
 
    - `sliceStructure` — the slice folder/numbering scheme is consistent (no
      gaps, each slice's number matches its position under its parent), and

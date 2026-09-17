@@ -52,15 +52,21 @@ slice's own `1`, and so on, until you reach a slice with no children.
 1. **Read that slice (or the feature, at the top) in full.** Its current
    `Acceptance Criteria` and `Scenarios` are what gets cut up next.
 
-2. **Ask: is a further cut still vertical?** A cut is vertical if the
-   resulting pieces each still describe a complete, independently
-   observable path through the system (something a user or another system
-   could notice working end-to-end), not a layer of one. If every way you
-   can think of to cut this slice further would produce a horizontal piece
-   instead (a piece that does nothing observable on its own — a schema
-   change with nothing reading it yet, a UI with nothing behind it), the
-   slice is done: set its status to `ready for implementation` and stop —
-   this is a leaf, and it hands off to the TDD-implementation skill next.
+2. **Ask: is a further cut still vertical, and would it still be
+   unsplittable?** A cut is vertical if the resulting pieces each still
+   describe a complete, independently observable path through the system
+   (something a user or another system could notice working end-to-end),
+   not a layer of one. If every way you can think of to cut this slice
+   further would produce a horizontal piece instead (a piece that does
+   nothing observable on its own — a schema change with nothing reading it
+   yet, a UI with nothing behind it), the slice is done: set its status to
+   `ready for implementation` and stop — this is a leaf, and it hands off to
+   the TDD-implementation skill next.
+
+   **Open point:** neither "vertical" nor "unsplittable" (small enough that
+   no further vertical cut is worth making) is checked deterministically
+   anywhere in this repo yet. Both are this skill's (or a human's) judgment
+   call — see "Relationship to the companion gates" below.
 
 3. **If a vertical cut is still possible, cut it.** Split the current
    slice's `Acceptance Criteria`/`Scenarios` into the smallest number of
@@ -96,5 +102,15 @@ slice's `Status` matching what's actually on disk (no `ready for
 implementation` slice with children underneath it, no `needs splitting`
 slice without any), and `requirementsCoverage` extended down to leaf-slice
 IDs so a leaf can't stay silently unimplemented once its top-level
-requirement shows covered. Whether a given cut is actually *vertical* stays
-this skill's judgment call — neither gate checks that yet.
+requirement shows covered.
+
+`sliceStructure`'s status check is a consistency check, not a correctness
+one: it confirms the `Status` *label* agrees with whether children exist on
+disk, never whether "ready for implementation" was the right call. Two
+things stay open, checked by neither gate: whether a given cut is actually
+*vertical*, and whether a slice marked "ready" is actually *unsplittable*
+(small enough that no further vertical cut would be worth making). A slice
+far too large to implement in one sitting, mislabeled "ready" by this skill
+or by hand, passes `sliceStructure` exactly the same as a genuinely minimal
+one — both stay this skill's (or a human's) judgment call until someone
+works out how to check them deterministically.
