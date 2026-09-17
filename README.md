@@ -35,6 +35,7 @@ structure-doc/           gradle/
 requirements/            gradle/  annotations/  (three gates + @Requirement)
 layer-disjointness/      gradle/
 suppression-register/    gradle/  annotations/  (gate + @RegisteredSuppression)
+feature-slicing/         claude/                (skill; gate planned)
 ```
 
 Two more top-level directories hold no subject-matter content of their own,
@@ -70,6 +71,7 @@ observe.
 | `open-decisions/` | — | `open-decisions` skill, `session-start.sh` hook |
 | `adr/` | — | `adr` skill |
 | `staged-verification/` | — | `staged-verification` skill |
+| `feature-slicing/` | (planned gate) | `feature-slicing` skill |
 
 `requirements/` and `commit-discipline/` are the only directories with more
 than one thing inside, and each time for a concrete, checked reason, not
@@ -380,10 +382,11 @@ feature:
    while they're still cheap to close, not after a slice has already been cut
    around a wrong assumption.
 
-2. **Vertical slicing** (planned) — the clarified idea is cut into small,
-   atomic, independently shippable vertical slices — each one a complete
-   path through the system, not a horizontal layer. This is the fifth skill
-   mentioned under [Status](#status); the rough shape so far:
+2. **Vertical slicing** — the clarified idea is cut into small, atomic,
+   independently shippable vertical slices — each one a complete path
+   through the system, not a horizontal layer. The `feature-slicing` skill
+   (see [What's inside](#whats-inside)) does this today; its companion gate
+   is still planned:
 
    - A top-level feature is one entry in the existing requirements register
      (e.g. requirement `4.2`), documented in full up front by the
@@ -445,8 +448,9 @@ feature:
    piggybacks on a signal that's already there rather than needing a new
    trigger. Not yet covered by any gate or skill here.
 
-Steps 1, 2, 3 and 4 are not built yet — they're named here so the gap is
-visible, not to claim tooling that doesn't exist.
+Steps 1, 3 and 4 are not built yet, and step 2's own gate isn't either —
+they're named here so the gap is visible, not to claim tooling that doesn't
+exist.
 
 ## Status
 
@@ -462,11 +466,12 @@ since `@Requirement`/`@RegisteredSuppression` end up scattered across a
 consuming project's test code, more expensive to change later than a Gradle
 property name.
 
-A fifth Claude Code skill — turning an idea into vertically-sliced,
-independently shippable pieces of work — is planned but deliberately not
-included yet; its design is still being worked out. See
-[Development process](#development-process) for where it and its
-idea-clarifying predecessor fit.
+A fifth Claude Code skill, `feature-slicing` — turning a feature into
+vertically-sliced, independently shippable pieces of work — is now included;
+its companion Gradle gate is planned but not built yet. An idea-clarifying
+skill meant to precede it (writing the feature doc `feature-slicing` starts
+from) is planned but doesn't exist yet either. See
+[Development process](#development-process) for where both fit.
 
 ## License
 
