@@ -34,6 +34,7 @@ staged-verification/     claude/                (skill)
 tdd-implementation/      claude/                (skill)
 acceptance/              claude/                (skill + hook)
 demo-feedback/           claude/                (skill)
+feature-delivery/        claude/                (skill; orchestrates the above five)
 commit-discipline/       gradle/  claude/       (git hook install task + skill + hook)
 structure-doc/           gradle/
 requirements/            gradle/  annotations/  (three gates + @Requirement)
@@ -80,6 +81,7 @@ observe.
 | `tdd-implementation/` | — | `tdd-implementation` skill |
 | `acceptance/` | — | `acceptance` skill, `acceptance-gate.sh` hook |
 | `demo-feedback/` | — | `demo-feedback` skill |
+| `feature-delivery/` | — | `feature-delivery` skill (orchestrates the five above) |
 
 `requirements/` and `commit-discipline/` are the only directories with more
 than one thing inside, and each time for a concrete, checked reason, not
@@ -440,10 +442,10 @@ changed. That judgment call is what the `release-impact` skill is for.
 Point Claude Code at one of `adr/claude/`, `open-decisions/claude/`,
 `staged-verification/claude/`, `commit-discipline/claude/`,
 `feature-slicing/claude/`, `idea-clarification/claude/`,
-`tdd-implementation/claude/`, `acceptance/claude/` or
-`demo-feedback/claude/` as a plugin directory (locally, or once published,
-via a marketplace) to get that directory's skill — install as many or as
-few as you want.
+`tdd-implementation/claude/`, `acceptance/claude/`, `demo-feedback/claude/`
+or `feature-delivery/claude/` as a plugin directory (locally, or once
+published, via a marketplace) to get that directory's skill — install as
+many or as few as you want.
 
 To use a hook, copy its script into your project and wire it in
 `.claude/settings.json`:
@@ -464,7 +466,11 @@ rather than from a config file.
 
 The gates and skills above aren't independent tools bolted together; they're
 meant to support one flow, from a raw feature idea to a shipped, verified
-feature:
+feature. `feature-delivery` is the recommended entry point for actually
+running it — it chains the five steps below on its own, so that a customer
+only ever sees two of them (idea clarification, and each round of demo and
+feedback), not the internal slicing/implementation/acceptance machinery in
+between. The five steps themselves:
 
 1. **Idea clarification** — before anything is cut into slices, the
    `idea-clarification` skill interrogates the idea itself, one question at
@@ -609,7 +615,7 @@ since `@Requirement`/`@RegisteredSuppression` end up scattered across a
 consuming project's test code, more expensive to change later than a Gradle
 property name.
 
-Five more Claude Code skills are now included, completing the whole
+Six more Claude Code skills are now included, completing the whole
 development-process chain end to end: `idea-clarification`, which
 interviews a raw feature idea and writes the resulting top-level feature
 doc; `feature-slicing`, which turns that doc into vertically-sliced,
@@ -618,11 +624,14 @@ independently shippable pieces of work, along with its companion
 drives one leaf slice through red/green/refactor, one acceptance criterion
 at a time; `acceptance`, which checks the finished slice back against its
 doc and, via its companion `acceptance-gate.sh` hook, blocks a `fix`/`feat`
-commit until that check has actually been done; and `demo-feedback`, which
+commit until that check has actually been done; `demo-feedback`, which
 demos the accepted slice live and folds what comes back into the sibling
 slices no one has cut further yet — the actual reason `feature-slicing`
-only ever looks at the first slice at any level. See
-[Development process](#development-process) for where all five fit.
+only ever looks at the first slice at any level; and `feature-delivery`,
+which chains all five of the above into the one loop a customer actually
+interacts with — idea clarification once, then a demo-and-feedback round
+per finished slice, nothing else surfaced to them. See
+[Development process](#development-process) for where all six fit.
 
 ## License
 
