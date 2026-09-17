@@ -33,6 +33,7 @@ open-decisions/          claude/                (skill + hook)
 staged-verification/     claude/                (skill)
 tdd-implementation/      claude/                (skill)
 acceptance/              claude/                (skill + hook)
+demo-feedback/           claude/                (skill)
 commit-discipline/       gradle/  claude/       (git hook install task + skill + hook)
 structure-doc/           gradle/
 requirements/            gradle/  annotations/  (three gates + @Requirement)
@@ -78,6 +79,7 @@ observe.
 | `idea-clarification/` | — | `idea-clarification` skill |
 | `tdd-implementation/` | — | `tdd-implementation` skill |
 | `acceptance/` | — | `acceptance` skill, `acceptance-gate.sh` hook |
+| `demo-feedback/` | — | `demo-feedback` skill |
 
 `requirements/` and `commit-discipline/` are the only directories with more
 than one thing inside, and each time for a concrete, checked reason, not
@@ -438,9 +440,10 @@ changed. That judgment call is what the `release-impact` skill is for.
 Point Claude Code at one of `adr/claude/`, `open-decisions/claude/`,
 `staged-verification/claude/`, `commit-discipline/claude/`,
 `feature-slicing/claude/`, `idea-clarification/claude/`,
-`tdd-implementation/claude/` or `acceptance/claude/` as a plugin directory
-(locally, or once published, via a marketplace) to get that directory's
-skill — install as many or as few as you want.
+`tdd-implementation/claude/`, `acceptance/claude/` or
+`demo-feedback/claude/` as a plugin directory (locally, or once published,
+via a marketplace) to get that directory's skill — install as many or as
+few as you want.
 
 To use a hook, copy its script into your project and wire it in
 `.claude/settings.json`:
@@ -495,8 +498,11 @@ feature:
      vertical-and-unsplittable is the stopping condition, not a size
      threshold. Sibling slices at every level are left untouched until the
      first slice has been carried all the way through — split, implemented
-     (step 3) and accepted (step 4) — before the next sibling is even looked
-     at.
+     (step 3), accepted (step 4), and demoed for feedback (step 5) — before
+     the next sibling is even looked at. That's not just sequencing: step 5
+     is exactly what makes waiting worthwhile, since it can still edit or
+     reorder those untouched siblings, or insert a new one between them,
+     while they're still just docs.
    - Every slice, leaf or not, states a **User Outcome**: a one-line
      statement of what a user (or another system) can now do that they
      couldn't before. Writing it is the skill's proxy for judging
@@ -572,7 +578,21 @@ feature:
    structural check here, the hook confirms the marker's presence, never
    that the judgment behind it was done honestly — that stays the skill's.
 
-All four steps exist today: their skills, step 2's two gates, and step 4's
+5. **Demo and feedback** — right after acceptance, the `demo-feedback`
+   skill launches the app and drives it through the slice's own scenarios
+   live, in a real browser, then asks targeted follow-up questions: does
+   the real thing match the `User Outcome` as written, does anything about
+   the *next* planned slices need to change now that this one is real, did
+   anything unanticipated surface. Whatever comes back is folded straight
+   into the docs of sibling slices that haven't been split further yet —
+   edited in place, or inserted as a brand-new sibling between existing
+   ones — never into a slice already implemented. This is the actual reason
+   step 2 only ever looks at the first slice at any level: the untouched
+   siblings are exactly where this feedback still has somewhere cheap to
+   land. Only once no untouched sibling exists anywhere does the feedback
+   fall back to the top-level feature doc's `Open Questions`.
+
+All five steps exist today: their skills, step 2's two gates, and step 4's
 companion hook.
 
 ## Status
@@ -589,17 +609,20 @@ since `@Requirement`/`@RegisteredSuppression` end up scattered across a
 consuming project's test code, more expensive to change later than a Gradle
 property name.
 
-Four more Claude Code skills are now included, completing the whole
+Five more Claude Code skills are now included, completing the whole
 development-process chain end to end: `idea-clarification`, which
 interviews a raw feature idea and writes the resulting top-level feature
 doc; `feature-slicing`, which turns that doc into vertically-sliced,
 independently shippable pieces of work, along with its companion
 `sliceStructure`/`sliceCoverage` Gradle gates; `tdd-implementation`, which
 drives one leaf slice through red/green/refactor, one acceptance criterion
-at a time; and `acceptance`, which checks the finished slice back against
-its doc and, via its companion `acceptance-gate.sh` hook, blocks a
-`fix`/`feat` commit until that check has actually been done. See
-[Development process](#development-process) for where all four fit.
+at a time; `acceptance`, which checks the finished slice back against its
+doc and, via its companion `acceptance-gate.sh` hook, blocks a `fix`/`feat`
+commit until that check has actually been done; and `demo-feedback`, which
+demos the accepted slice live and folds what comes back into the sibling
+slices no one has cut further yet — the actual reason `feature-slicing`
+only ever looks at the first slice at any level. See
+[Development process](#development-process) for where all five fit.
 
 ## License
 

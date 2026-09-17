@@ -93,19 +93,23 @@ slice's own `1`, and so on, until you reach a slice with no children.
 
 4. **Recurse into the first new slice.** Go back to step 1 with slice `1`
    at the new, deeper level. Never look at slice `2`, `3`, ... at any level
-   until slice `1` at that level has been split down to a leaf,
-   implemented, and accepted (see the TDD-implementation and
-   acceptance-against-description steps) — working on a sibling before
-   that isn't cutting smaller, it's starting a second slice in parallel.
+   until slice `1` at that level has been split down to a leaf, implemented,
+   accepted, and demoed (see the TDD-implementation, acceptance, and
+   `demo-feedback` steps) — working on a sibling before that isn't cutting
+   smaller, it's starting a second slice in parallel.
 
 ## Why only ever the first slice
 
 Cutting every sibling up front before implementing any of them defeats the
 point of slicing: the whole reason to slice is to get one small, complete,
 shippable piece of value out the door before deciding exactly how to cut
-the next one — later slices are easier to cut correctly once the first one
-has actually been built and something was learned from it. Slicing all
-siblings eagerly is just re-doing feature decomposition, one level lower.
+the next one. Concretely, that "deciding" happens in `demo-feedback`: once
+the first slice is built, accepted, and demoed live, whatever a real
+reaction to it reveals gets folded straight into the untouched siblings —
+edited, reordered, or a new one inserted between existing ones — while
+they're still just docs and cost nothing to change. Slicing all siblings
+eagerly, before any of that feedback exists, is just re-doing feature
+decomposition on guesses, one level lower.
 
 ## Relationship to the companion gates
 
