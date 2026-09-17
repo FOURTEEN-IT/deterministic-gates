@@ -17,6 +17,32 @@ repositories {
     mavenCentral()
 }
 
+// This directory holds only the build definition and the code with no single fachlich owner
+// (internal/* -- shared parsing helpers used across gates -- and the cross-plugin functional
+// test). Each gate's actual source lives next to its Claude Code counterpart (if any) under its
+// own top-level Fachlichkeit directory, not here -- see the repo README for why.
+sourceSets {
+    main {
+        java {
+            srcDir("../structure-doc/gradle/src/main/java")
+            srcDir("../requirements/gradle/src/main/java")
+            srcDir("../layer-disjointness/gradle/src/main/java")
+            srcDir("../suppression-register/gradle/src/main/java")
+            srcDir("../commit-discipline/gradle/src/main/java")
+        }
+        resources {
+            srcDir("../commit-discipline/gradle/src/main/resources")
+        }
+    }
+    test {
+        java {
+            srcDir("../structure-doc/gradle/src/test/java")
+            srcDir("../requirements/gradle/src/test/java")
+            srcDir("../suppression-register/gradle/src/test/java")
+        }
+    }
+}
+
 // No runtime dependencies beyond the Gradle API on purpose: every gate here parses plain text,
 // JUnit/JaCoCo XML (JDK's own javax.xml.parsers) or reflects over compiled classes -- none of
 // that needs a third-party library, and a project pulling in this plugin shouldn't have to pull

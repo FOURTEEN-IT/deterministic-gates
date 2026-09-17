@@ -1,0 +1,17 @@
+{
+  "_comment": "Example .claude/settings.json wiring for hooks/session-start.sh, for a project that wants to copy the hook script directly instead of installing this directory as a Claude Code plugin. Adjust the path if you place the script somewhere other than ci/.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}/ci/session-start.sh\"",
+            "timeout": 15,
+            "statusMessage": "Reading working state and open decisions"
+          }
+        ]
+      }
+    ]
+  }
+}
