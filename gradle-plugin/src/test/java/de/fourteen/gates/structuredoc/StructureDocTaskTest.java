@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.structuredoc;
 
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
@@ -19,7 +19,7 @@ class StructureDocTaskTest {
 
     Path projectDir;
     Project project;
-    GatesExtension extension;
+    StructureDocExtension extension;
 
     @BeforeEach
     void setUp(@TempDir Path tempDir) throws IOException {
@@ -27,8 +27,8 @@ class StructureDocTaskTest {
         Files.createDirectories(projectDir.resolve("domain"));
 
         project = ProjectBuilder.builder().withProjectDir(projectDir.toFile()).build();
-        project.getPluginManager().apply(GatesPlugin.class);
-        extension = project.getExtensions().getByType(GatesExtension.class);
+        project.getPluginManager().apply(StructureDocPlugin.class);
+        extension = project.getExtensions().getByType(StructureDocExtension.class);
         extension.getArchitectureDocFile().set(project.getLayout().getProjectDirectory().file("ARCHITECTURE.md"));
         extension.getDomainModelDir().set(project.getLayout().getProjectDirectory().dir("domain"));
     }
@@ -68,11 +68,29 @@ class StructureDocTaskTest {
 
     @Test
     void allowedMissingNamesAreNotFlagged() throws IOException {
-        extension.getStructureDocAllowedMissingNames().set(java.util.List.of("PLACEHOLDER.md"));
+        extension.getAllowedMissingNames().set(java.util.List.of("PLACEHOLDER.md"));
         Files.writeString(projectDir.resolve("domain/Room.java"), "class Room {}");
         Files.writeString(projectDir.resolve("ARCHITECTURE.md"),
                 "Room.java is the aggregate root. See PLACEHOLDER.md for the template.");
 
         assertDoesNotThrow(() -> task().check());
+    }
+
+    @Test
+    void taskIsSkippedInTheBuildGraphUntilDomainModelDirIsConfigured(@TempDir Path freshProjectDir) {
+        Project freshProject = ProjectBuilder.builder().withProjectDir(freshProjectDir.toFile()).build();
+        freshProject.getPluginManager().apply(StructureDocPlugin.class);
+        StructureDocExtension freshExtension = freshProject.getExtensions().getByType(StructureDocExtension.class);
+        StructureDocTask freshTask = (StructureDocTask) freshProject.getTasks().getByName("structureDoc");
+
+        // Applying the plugin alone must not force this gate on a project that never asked for
+        // it -- onlyIf gates the real build graph (unlike calling check() directly, which always
+        // runs regardless).
+        assertTrue(!freshTask.getOnlyIf().isSatisfiedBy(freshTask),
+                "task should be skipped in the build graph while domainModelDir is unset");
+
+        freshExtension.getDomainModelDir().set(freshProject.getLayout().getProjectDirectory().dir("domain"));
+        assertTrue(freshTask.getOnlyIf().isSatisfiedBy(freshTask),
+                "task should attach to the build graph once domainModelDir is set");
     }
 }

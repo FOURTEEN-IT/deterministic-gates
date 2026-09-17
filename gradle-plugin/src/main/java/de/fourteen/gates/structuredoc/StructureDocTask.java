@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.structuredoc;
 
 import de.fourteen.gates.internal.Reports;
 import org.gradle.api.DefaultTask;
@@ -49,7 +49,7 @@ public abstract class StructureDocTask extends DefaultTask {
     public abstract DirectoryProperty getDomainModelDir();
 
     @Input
-    public abstract ListProperty<String> getStructureDocAllowedMissingNames();
+    public abstract ListProperty<String> getAllowedMissingNames();
 
     @OutputFile
     public abstract RegularFileProperty getReportFile();
@@ -58,7 +58,7 @@ public abstract class StructureDocTask extends DefaultTask {
     public void check() {
         File docFile = getArchitectureDocFile().get().getAsFile();
         String text = readFile(docFile);
-        Set<String> allowedMissing = new HashSet<>(getStructureDocAllowedMissingNames().get());
+        Set<String> allowedMissing = new HashSet<>(getAllowedMissingNames().get());
 
         Set<String> namedFiles = new TreeSet<>();
         Matcher matcher = NAMED_FILE.matcher(text);

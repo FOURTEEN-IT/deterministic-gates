@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.requirements;
 
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
@@ -19,7 +19,7 @@ class FeatureDocsTaskTest {
 
     Path projectDir;
     Project project;
-    GatesExtension extension;
+    RequirementsExtension extension;
 
     @BeforeEach
     void setUp(@TempDir Path tempDir) throws IOException {
@@ -27,8 +27,8 @@ class FeatureDocsTaskTest {
         Files.createDirectories(projectDir.resolve("features"));
 
         project = ProjectBuilder.builder().withProjectDir(projectDir.toFile()).build();
-        project.getPluginManager().apply(GatesPlugin.class);
-        extension = project.getExtensions().getByType(GatesExtension.class);
+        project.getPluginManager().apply(RequirementsPlugin.class);
+        extension = project.getExtensions().getByType(RequirementsExtension.class);
         extension.getFeaturesDir().set(project.getLayout().getProjectDirectory().dir("features"));
         extension.getRequirementsFile().set(project.getLayout().getProjectDirectory().file("requirements.md"));
 

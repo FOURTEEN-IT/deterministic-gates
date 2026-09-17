@@ -1,5 +1,9 @@
 package de.fourteen.gates.internal;
 
+import org.gradle.api.Project;
+import org.gradle.api.file.RegularFile;
+import org.gradle.api.provider.Provider;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,5 +22,10 @@ public final class Reports {
         } catch (IOException e) {
             throw new RuntimeException("Could not write report to " + file, e);
         }
+    }
+
+    /** The conventional {@code build/reports/gates/<gateName>.txt} location every gate writes to. */
+    public static Provider<RegularFile> conventionFile(Project project, String gateName) {
+        return project.getLayout().getBuildDirectory().file("reports/gates/" + gateName + ".txt");
     }
 }

@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.requirements;
 
 import de.fourteen.gates.internal.AnnotatedElements;
 import de.fourteen.gates.internal.JUnitResults;

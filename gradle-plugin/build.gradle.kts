@@ -27,16 +27,46 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// Five plugins, not one: structureDoc, layerDisjointness and suppressionRegister check three
+// unrelated things and can be adopted independently; requirementsCoverage,
+// taggedRequirementsCoverage and featureDocs stay together in "requirements" because all three
+// read the same requirements register through the same parser (see
+// requirements/RequirementsExtension.java) -- splitting those three further would mean
+// duplicating that parser instead of sharing it.
 gradlePlugin {
     plugins {
-        create("gates") {
-            id = "de.fourteen.gates"
-            implementationClass = "de.fourteen.gates.GatesPlugin"
-            displayName = "Deterministic Gates"
-            description = "Judgment-free build gates: a requirements register kept honest, " +
-                "an architecture doc that can't silently rot, layer-disjoint test coverage, " +
-                "feature docs that follow their template, and a suppression register that " +
-                "matches the code."
+        create("structureDoc") {
+            id = "de.fourteen.gates.structuredoc"
+            implementationClass = "de.fourteen.gates.structuredoc.StructureDocPlugin"
+            displayName = "Deterministic Gates: structureDoc"
+            description = "Checks that an architecture doc names no file that doesn't exist " +
+                "and mentions every domain type."
+        }
+        create("requirements") {
+            id = "de.fourteen.gates.requirements"
+            implementationClass = "de.fourteen.gates.requirements.RequirementsPlugin"
+            displayName = "Deterministic Gates: requirements"
+            description = "Keeps a requirements register honest: annotated-and-passed test " +
+                "coverage, source-tagged coverage, and feature docs that reference only real IDs."
+        }
+        create("layerDisjointness") {
+            id = "de.fourteen.gates.layerdisjointness"
+            implementationClass = "de.fourteen.gates.layerdisjointness.LayerDisjointnessPlugin"
+            displayName = "Deterministic Gates: layerDisjointness"
+            description = "Checks that no domain line is covered only by an outer-layer test."
+        }
+        create("suppressionRegister") {
+            id = "de.fourteen.gates.suppressionregister"
+            implementationClass = "de.fourteen.gates.suppressionregister.SuppressionRegisterPlugin"
+            displayName = "Deterministic Gates: suppressionRegister"
+            description = "Checks that every suppression annotation in the code has a " +
+                "matching, dated register entry, and vice versa."
+        }
+        create("gitHooks") {
+            id = "de.fourteen.gates.githooks"
+            implementationClass = "de.fourteen.gates.githooks.GitHooksPlugin"
+            displayName = "Deterministic Gates: gitHooks"
+            description = "Installs a Conventional-Commits-checking commit-msg git hook."
         }
     }
 }

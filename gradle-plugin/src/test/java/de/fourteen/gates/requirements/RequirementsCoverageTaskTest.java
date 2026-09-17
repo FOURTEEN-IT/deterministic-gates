@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.requirements;
 
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * XML result the way a real test run would, and let the task cross-reference them -- rather than
  * mocking any of the three. Uses a fixture-local annotation (not this repo's own
  * {@code annotations} module) so the test doesn't depend on that module having been built first;
- * {@link GatesPluginConventionsTest} separately locks in that the shipped one is the default.
+ * {@link RequirementsPluginConventionsTest} separately locks in that the shipped one is the default.
  */
 class RequirementsCoverageTaskTest {
 
@@ -34,7 +34,7 @@ class RequirementsCoverageTaskTest {
     Path classesDir;
     Path resultsDir;
     Project project;
-    GatesExtension extension;
+    RequirementsExtension extension;
 
     @BeforeEach
     void setUp(@TempDir Path tempDir) throws IOException {
@@ -82,8 +82,8 @@ class RequirementsCoverageTaskTest {
                 """);
 
         project = ProjectBuilder.builder().withProjectDir(projectDir.toFile()).build();
-        project.getPluginManager().apply(GatesPlugin.class);
-        extension = project.getExtensions().getByType(GatesExtension.class);
+        project.getPluginManager().apply(RequirementsPlugin.class);
+        extension = project.getExtensions().getByType(RequirementsExtension.class);
         extension.getRequirementsFile().set(project.getLayout().getProjectDirectory().file("requirements.md"));
         extension.getRequirementAnnotationFqn().set("fixture.Marker");
         extension.getTestClassesDirs().setFrom(classesDir.toFile());

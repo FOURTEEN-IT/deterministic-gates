@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.suppressionregister;
 
 import de.fourteen.gates.internal.AnnotatedElements;
 import de.fourteen.gates.internal.MarkdownTables;

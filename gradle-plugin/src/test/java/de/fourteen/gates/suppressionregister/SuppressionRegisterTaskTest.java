@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.suppressionregister;
 
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Uses a fixture-local suppression annotation for the same reason as
- * {@link RequirementsCoverageTaskTest}: exercises the real compile-reflect-diff mechanism
+ * RequirementsCoverageTaskTest: exercises the real compile-reflect-diff mechanism
  * without depending on the {@code annotations} module having been built first.
  */
 class SuppressionRegisterTaskTest {
@@ -31,7 +31,7 @@ class SuppressionRegisterTaskTest {
     Path projectDir;
     Path classesDir;
     Project project;
-    GatesExtension extension;
+    SuppressionRegisterExtension extension;
 
     @BeforeEach
     void setUp(@TempDir Path tempDir) throws IOException {
@@ -60,13 +60,13 @@ class SuppressionRegisterTaskTest {
         compile(srcDir, classesDir);
 
         project = ProjectBuilder.builder().withProjectDir(projectDir.toFile()).build();
-        project.getPluginManager().apply(GatesPlugin.class);
-        extension = project.getExtensions().getByType(GatesExtension.class);
+        project.getPluginManager().apply(SuppressionRegisterPlugin.class);
+        extension = project.getExtensions().getByType(SuppressionRegisterExtension.class);
         extension.getExceptionsRegisterFile().set(project.getLayout().getProjectDirectory().file("exceptions.md"));
         extension.getSuppressionAnnotationFqns().set(List.of("fixture.Suppressed"));
 
-        // Without the `java` plugin applied, GatesPlugin never wires these from a source set
-        // (see GatesPlugin.apply) -- set them directly on the task, the way a project without
+        // Without the `java` plugin applied, SuppressionRegisterPlugin never wires these from a source set
+        // (see SuppressionRegisterPlugin.apply) -- set them directly on the task, the way a project without
         // `java` (but with its own compiled-classes convention) would have to anyway.
         task().getMainClassesDirs().setFrom(classesDir.toFile());
         task().getClasspath().setFrom(classesDir.toFile());
@@ -121,5 +121,22 @@ class SuppressionRegisterTaskTest {
 
         GradleException exception = assertThrows(GradleException.class, () -> task().check());
         assertTrue(exception.getMessage().contains("LongGoneTest.deletedMethod"));
+    }
+
+    @Test
+    void taskIsSkippedInTheBuildGraphUntilExceptionsRegisterFileIsConfigured(@TempDir Path freshProjectDir) {
+        Project freshProject = ProjectBuilder.builder().withProjectDir(freshProjectDir.toFile()).build();
+        freshProject.getPluginManager().apply(SuppressionRegisterPlugin.class);
+        SuppressionRegisterExtension freshExtension =
+                freshProject.getExtensions().getByType(SuppressionRegisterExtension.class);
+        SuppressionRegisterTask freshTask = (SuppressionRegisterTask) freshProject.getTasks().getByName("suppressionRegister");
+
+        assertTrue(!freshTask.getOnlyIf().isSatisfiedBy(freshTask),
+                "task should be skipped in the build graph while exceptionsRegisterFile is unset");
+
+        freshExtension.getExceptionsRegisterFile().set(
+                freshProject.getLayout().getProjectDirectory().file("exceptions.md"));
+        assertTrue(freshTask.getOnlyIf().isSatisfiedBy(freshTask),
+                "task should attach to the build graph once exceptionsRegisterFile is set");
     }
 }

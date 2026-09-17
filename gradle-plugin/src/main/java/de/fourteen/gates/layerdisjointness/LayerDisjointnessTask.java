@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.layerdisjointness;
 
 import de.fourteen.gates.internal.JacocoReport;
 import de.fourteen.gates.internal.Reports;

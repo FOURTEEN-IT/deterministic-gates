@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.githooks;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;

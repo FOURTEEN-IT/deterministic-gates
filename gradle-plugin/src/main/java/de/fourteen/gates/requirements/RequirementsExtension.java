@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.requirements;
 
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
@@ -7,24 +7,19 @@ import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 
 /**
- * Configuration for the deterministic gates.
+ * Configuration for the three requirements-register gates: {@code requirementsCoverage},
+ * {@code taggedRequirementsCoverage} and {@code featureDocs}. They live in one plugin, not
+ * three, because all three read the same {@link #getRequirementsFile()} through the same
+ * convention (see the README) -- splitting them further would mean either duplicating that
+ * parsing or introducing a fourth artifact just to share it.
  *
- * <p>Each gate checks against a fixed file convention that is documented in the README, not
- * against something configurable here -- adopting a gate means adopting that convention.
- * These properties only say <em>where</em> a project keeps the file or directory the
- * convention lives in, and the handful of names (annotation class, package prefix) that are
- * inevitably project-specific.
+ * <p>Each gate still activates independently: only the gate(s) whose own required properties
+ * are set attach to {@code check}.
  */
-public abstract class GatesExtension {
+public abstract class RequirementsExtension {
 
-    // Shared by requirementsCoverage, taggedRequirementsCoverage and featureDocs: the single
-    // register of requirement IDs a project checks its tests and feature docs against.
+    // Shared by all three gates below.
     public abstract RegularFileProperty getRequirementsFile();
-
-    // structureDoc
-    public abstract RegularFileProperty getArchitectureDocFile();
-    public abstract DirectoryProperty getDomainModelDir();
-    public abstract ListProperty<String> getStructureDocAllowedMissingNames();
 
     // requirementsCoverage -- the marker annotation is shipped by this plugin's `annotations`
     // module (de.fourteen.gates.annotations.Requirement) and used by default; override only if
@@ -41,11 +36,6 @@ public abstract class GatesExtension {
     public abstract Property<String> getTagFunctionName();
     public abstract Property<String> getTaggedCoverageCategory();
 
-    // layerDisjointness
-    public abstract Property<String> getDomainPackagePrefix();
-    public abstract RegularFileProperty getInnerCoverageReportXml();
-    public abstract ConfigurableFileCollection getOuterCoverageReportXmls();
-
     // featureDocs -- required section headings, table labels and the criticality label are
     // project vocabulary (like an annotation's FQN), not structural format, so they stay
     // configurable; the structure itself (one heading per requirement, a reference table with
@@ -60,12 +50,4 @@ public abstract class GatesExtension {
     public abstract Property<Integer> getMaxAcceptanceCriteria();
     public abstract ListProperty<String> getAllowedCriticalityLevels();
     public abstract ListProperty<String> getAllowedReferenceTypes();
-
-    // suppressionRegister -- defaults to this plugin's own
-    // de.fourteen.gates.annotations.RegisteredSuppression plus JUnit 5's @Disabled (both
-    // already on most JVM test classpaths, the latter without any extra dependency at all);
-    // add to the list rather than replacing it if a project has further suppression annotations
-    // of its own.
-    public abstract RegularFileProperty getExceptionsRegisterFile();
-    public abstract ListProperty<String> getSuppressionAnnotationFqns();
 }

@@ -1,4 +1,4 @@
-package de.fourteen.gates;
+package de.fourteen.gates.requirements;
 
 import de.fourteen.gates.internal.MarkdownTables;
 import de.fourteen.gates.internal.Reports;
