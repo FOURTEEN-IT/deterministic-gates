@@ -29,6 +29,7 @@ sourceSets {
             srcDir("../layer-disjointness/gradle/src/main/java")
             srcDir("../suppression-register/gradle/src/main/java")
             srcDir("../commit-discipline/gradle/src/main/java")
+            srcDir("../feature-slicing/gradle/src/main/java")
         }
         resources {
             srcDir("../commit-discipline/gradle/src/main/resources")
@@ -39,6 +40,7 @@ sourceSets {
             srcDir("../structure-doc/gradle/src/test/java")
             srcDir("../requirements/gradle/src/test/java")
             srcDir("../suppression-register/gradle/src/test/java")
+            srcDir("../feature-slicing/gradle/src/test/java")
         }
     }
 }
@@ -53,12 +55,14 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-// Five plugins, not one: structureDoc, layerDisjointness and suppressionRegister check three
+// Six plugins, not one: structureDoc, layerDisjointness and suppressionRegister check three
 // unrelated things and can be adopted independently; requirementsCoverage,
 // taggedRequirementsCoverage and featureDocs stay together in "requirements" because all three
 // read the same requirements register through the same parser (see
 // requirements/RequirementsExtension.java) -- splitting those three further would mean
-// duplicating that parser instead of sharing it.
+// duplicating that parser instead of sharing it. sliceStructure and sliceCoverage stay together
+// in "featureSlicing" for the same reason: both read the same slice tree under featuresDir (see
+// feature-slicing/FeatureSlicingExtension.java).
 gradlePlugin {
     plugins {
         create("structureDoc") {
@@ -93,6 +97,14 @@ gradlePlugin {
             implementationClass = "de.fourteen.gates.githooks.GitHooksPlugin"
             displayName = "Deterministic Gates: gitHooks"
             description = "Installs a Conventional-Commits-checking commit-msg git hook."
+        }
+        create("featureSlicing") {
+            id = "de.fourteen.gates.featureslicing"
+            implementationClass = "de.fourteen.gates.featureslicing.FeatureSlicingPlugin"
+            displayName = "Deterministic Gates: featureSlicing"
+            description = "Checks that a feature's slice tree stays numbered consistently, " +
+                "that each slice's status agrees with its folder structure, and that every " +
+                "leaf slice is covered by a passed, annotated test."
         }
     }
 }
