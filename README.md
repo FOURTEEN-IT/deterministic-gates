@@ -368,6 +368,40 @@ value from an environment variable (`GATES_MAIN_BRANCH`,
 `GATES_OPEN_DECISIONS_FILE`) with a sensible default, rather than from a
 config file.
 
+## Development process
+
+The gates and skills above aren't independent tools bolted together; they're
+meant to support one flow, from a raw feature idea to a shipped, verified
+feature:
+
+1. **Idea clarification** (planned) — before anything is cut into slices, a
+   skill interrogates the idea itself: what's actually being asked for, what's
+   assumed but unstated, where the edges are. Its job is to surface gaps
+   while they're still cheap to close, not after a slice has already been cut
+   around a wrong assumption.
+
+2. **Vertical slicing** (planned) — the clarified idea is cut into small,
+   atomic, independently shippable vertical slices — each one a complete
+   path through the system, not a horizontal layer. This is the fifth skill
+   mentioned under [Status](#status); its design isn't finalized yet.
+
+3. **TDD implementation** — each slice is implemented test-first.
+   `staged-verification` supports this loop directly: compile, then
+   unit/domain tests, then architecture tests, then the full check, stopping
+   at the first red stage instead of waiting on a full run to fail somewhere
+   in the middle.
+
+4. **Acceptance against the original description** — once a slice is done,
+   it's checked back against what was actually asked for, not only against
+   the tests written for it. This is where `featureDocs` earns its keep: a
+   feature doc's `Acceptance Criteria` and `Scenarios` sections are the
+   original description in checkable form, and the gate refuses a doc that
+   drifts from the requirements register rather than letting the code drift
+   from the doc unnoticed.
+
+Steps 1 and 2 are not built yet — they're named here so the gap is visible,
+not to claim tooling that doesn't exist.
+
 ## Status
 
 This is a first extraction from a single origin project, done in one pass —
@@ -384,7 +418,9 @@ property name.
 
 A fifth Claude Code skill — turning an idea into vertically-sliced,
 independently shippable pieces of work — is planned but deliberately not
-included yet; its design is still being worked out.
+included yet; its design is still being worked out. See
+[Development process](#development-process) for where it and its
+idea-clarifying predecessor fit.
 
 ## License
 
