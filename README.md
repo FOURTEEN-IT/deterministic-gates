@@ -35,7 +35,7 @@ structure-doc/           gradle/
 requirements/            gradle/  annotations/  (three gates + @Requirement)
 layer-disjointness/      gradle/
 suppression-register/    gradle/  annotations/  (gate + @RegisteredSuppression)
-feature-slicing/         claude/                (skill; gate planned)
+feature-slicing/         gradle/  claude/       (two gates + skill)
 ```
 
 Two more top-level directories hold no subject-matter content of their own,
@@ -71,7 +71,7 @@ observe.
 | `open-decisions/` | — | `open-decisions` skill, `session-start.sh` hook |
 | `adr/` | — | `adr` skill |
 | `staged-verification/` | — | `staged-verification` skill |
-| `feature-slicing/` | (planned gate) | `feature-slicing` skill |
+| `feature-slicing/` | `sliceStructure`, `sliceCoverage` gates | `feature-slicing` skill |
 
 `requirements/` and `commit-discipline/` are the only directories with more
 than one thing inside, and each time for a concrete, checked reason, not
@@ -95,7 +95,7 @@ bundle over it. `staged-verification` and `adr` reference nothing else.
 
 ## Gradle gates
 
-Six gates, five plugin ids, zero runtime dependencies beyond the JDK and the
+Eight gates, six plugin ids, zero runtime dependencies beyond the JDK and the
 Gradle API — every gate here parses plain text, JUnit/JaCoCo XML (the JDK's
 own `javax.xml.parsers`) or reflects over compiled classes.
 
@@ -107,6 +107,8 @@ own `javax.xml.parsers`) or reflects over compiled classes.
 | | | `featureDocs` | Every feature doc follows the template, states exactly one criticality, stays under the acceptance-criteria limit, and references only real requirement IDs |
 | `de.fourteen.gates.layerdisjointness` | `layerDisjointness {}` | `layerDisjointness` | No line of domain code is covered only by an outer-layer test — a gap further in isn't credited to the outer layer |
 | `de.fourteen.gates.suppressionregister` | `suppressionRegister {}` | `suppressionRegister` | Every test/mutation suppression in code has a matching, dated entry in a register, and vice versa |
+| `de.fourteen.gates.featureslicing` | `featureSlicing {}` | `sliceStructure` | A feature's slice tree (see the `feature-slicing` skill) is numbered contiguously, and each slice's status agrees with its actual folder structure |
+| | | `sliceCoverage` | Every leaf slice (no children of its own) is claimed by an annotated test method that actually passed — `requirementsCoverage`'s guarantee, pushed down to slice granularity |
 | `de.fourteen.gates.githooks` | — | `installGitHooks` | (not a gate — see below) |
 
 Each gate checks against a **fixed file convention**, documented below —
@@ -172,6 +174,7 @@ plugins {
     id("de.fourteen.gates.requirements") version "<tag>"
     id("de.fourteen.gates.layerdisjointness") version "<tag>"
     id("de.fourteen.gates.suppressionregister") version "<tag>"
+    id("de.fourteen.gates.featureslicing") version "<tag>"
     id("de.fourteen.gates.githooks") version "<tag>"
     // see "Consuming these plugins" below for what <tag> resolves against
 }
@@ -211,6 +214,16 @@ layerDisjointness {
 suppressionRegister {
     exceptionsRegisterFile.set(layout.projectDirectory.file("docs/test-exceptions.md"))
     // suppressionAnnotationFqns defaults to [RegisteredSuppression, org.junit.jupiter.api.Disabled]
+}
+
+featureSlicing {
+    // featuresDir is deliberately the same directory requirements.featuresDir points at above --
+    // a slice tree is rooted at the same feature docs, not a separate directory to configure twice.
+    featuresDir.set(layout.projectDirectory.dir("docs/features"))
+    // requirementAnnotationFqn defaults to de.fourteen.gates.annotations.Requirement, same as
+    // requirementsCoverage -- a leaf slice's ID is claimed the exact same way a requirement's is
+    // statusSectionName/statusLabel default to "Status"; allowedStatuses defaults to
+    // ["needs splitting", "ready for implementation"]
 }
 ```
 
@@ -318,6 +331,45 @@ turn into stale entries:
 | PaymentGateway.retry   | flaky third-party API in CI  | 2026-03-01 |
 ```
 
+**`sliceStructure` / `sliceCoverage`** read a slice tree rooted at each
+top-level feature doc under `featuresDir` (see the `feature-slicing` skill):
+a slice doc `N.md` may have a same-named sibling directory `N/` holding its
+own numbered children, recursively:
+
+```
+docs/features/
+  4.2.md
+  4.2/
+    1.md    <- ## Status \n\n **Status:** needs splitting
+    1/
+      1.md  <- ## Status \n\n **Status:** ready for implementation
+      2.md  <- ## Status \n\n **Status:** ready for implementation
+    2.md    <- ## Status \n\n **Status:** ready for implementation
+```
+
+`sliceStructure` requires numbering under each directory to be contiguous
+from 1 (no gaps, no duplicates), and requires each slice doc's `Status`
+section to state exactly one of `allowedStatuses` — `needsSplittingStatus`
+("needs splitting" by default) only where a child directory actually exists,
+any other status (e.g. "ready for implementation") only where none does.
+
+`sliceCoverage` then requires every *leaf* slice (one with no children of
+its own — `4.2.1.1`, `4.2.1.2` and `4.2.2` above, not `4.2.1`) to be claimed
+by a passed test annotated with its own ID, the same marker annotation
+`requirementsCoverage` uses:
+
+```java
+import de.fourteen.gates.annotations.Requirement;
+
+@Test
+@Requirement("4.2.1.1")
+void aPlayerCanEnterARoomCode() { ... }
+```
+
+A feature that hasn't been sliced at all yet (no directory next to its
+`.md` file) needs no leaf-slice coverage — it's still covered, if at all, by
+`requirementsCoverage` at the requirement-ID level.
+
 ### Consuming these plugins
 
 This repository doesn't publish to the Gradle Plugin Portal (yet — see
@@ -385,8 +437,8 @@ feature:
 2. **Vertical slicing** — the clarified idea is cut into small, atomic,
    independently shippable vertical slices — each one a complete path
    through the system, not a horizontal layer. The `feature-slicing` skill
-   (see [What's inside](#whats-inside)) does this today; its companion gate
-   is still planned:
+   and its companion `sliceStructure`/`sliceCoverage` gates (see
+   [What's inside](#whats-inside)) do this today:
 
    - A top-level feature is one entry in the existing requirements register
      (e.g. requirement `4.2`), documented in full up front by the
@@ -408,23 +460,26 @@ feature:
    - How "vertical" gets checked deterministically isn't decided yet; for
      now it's the skill's (or a human's) judgment call.
 
-   A companion Gradle gate is planned alongside this skill, checking what
-   *can* already be checked deterministically without solving the
-   vertical-check problem first:
+   The `sliceStructure` and `sliceCoverage` gates check what *can* already
+   be checked deterministically without solving the vertical-check problem
+   first:
 
-   - the slice folder/numbering scheme is consistent (no gaps, each slice's
-     number matches its position under its parent);
-   - each slice doc's status (e.g. "needs further slicing" vs. "ready for
-     implementation") matches what the folder structure actually shows —
-     a "ready" slice with child slices already underneath it, or a "needs
+   - `sliceStructure` — the slice folder/numbering scheme is consistent (no
+     gaps, each slice's number matches its position under its parent), and
+     each slice doc's status ("needs splitting" vs. "ready for
+     implementation") matches what the folder structure actually shows — a
+     "ready" slice with child slices already underneath it, or a "needs
      splitting" slice with none, is a contradiction the gate rejects;
-   - `requirementsCoverage`'s check extended down to slice granularity: a
-     leaf slice (no children, "ready for implementation") needs a passing
-     test that references *that slice's* ID, not just the top-level
-     requirement's — the same no-gap guarantee `requirementsCoverage`
+   - `sliceCoverage` — `requirementsCoverage`'s check extended down to slice
+     granularity: a leaf slice (no children, "ready for implementation")
+     needs a passing test that references *that slice's* ID, not just the
+     top-level requirement's — the same no-gap guarantee `requirementsCoverage`
      already gives at the requirement level, pushed one level further down
      so a slice can't quietly stay unimplemented once its parent requirement
      shows covered.
+
+   See [Gradle gates](#gradle-gates) for the exact convention both check
+   against.
 
 3. **TDD implementation** (planned) — a skill drives one slice at a time
    through red/green/refactor: write the failing test, make it pass with the
@@ -448,9 +503,9 @@ feature:
    piggybacks on a signal that's already there rather than needing a new
    trigger. Not yet covered by any gate or skill here.
 
-Steps 1, 3 and 4 are not built yet, and step 2's own gate isn't either —
-they're named here so the gap is visible, not to claim tooling that doesn't
-exist.
+Steps 1, 3 and 4 are not built yet — they're named here so the gap is
+visible, not to claim tooling that doesn't exist. Step 2 is the exception:
+its skill and both gates exist today.
 
 ## Status
 
@@ -467,10 +522,10 @@ consuming project's test code, more expensive to change later than a Gradle
 property name.
 
 A fifth Claude Code skill, `feature-slicing` — turning a feature into
-vertically-sliced, independently shippable pieces of work — is now included;
-its companion Gradle gate is planned but not built yet. An idea-clarifying
-skill meant to precede it (writing the feature doc `feature-slicing` starts
-from) is planned but doesn't exist yet either. See
+vertically-sliced, independently shippable pieces of work — is now included,
+along with its companion `sliceStructure`/`sliceCoverage` Gradle gates. An
+idea-clarifying skill meant to precede it (writing the feature doc
+`feature-slicing` starts from) is planned but doesn't exist yet. See
 [Development process](#development-process) for where both fit.
 
 ## License

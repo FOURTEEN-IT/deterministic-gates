@@ -16,8 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * way an actual consumer would -- unlike the other tests, which apply plugin classes directly
  * through ProjectBuilder and so never exercise the id-to-implementation-class resolution that
  * {@code gradlePlugin { plugins { ... } } } in build.gradle.kts sets up. Confirms two of the
- * five plugin ids resolve and that applying only one of them leaves the other's gate absent
- * from {@code check} entirely -- the actual point of splitting into five.
+ * six plugin ids resolve and that applying only one of them leaves the other's gate absent
+ * from {@code check} entirely -- the actual point of splitting into six.
  */
 class PluginIdsFunctionalTest {
 

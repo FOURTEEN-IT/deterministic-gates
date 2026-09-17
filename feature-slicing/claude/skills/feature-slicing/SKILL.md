@@ -87,13 +87,14 @@ the next one — later slices are easier to cut correctly once the first one
 has actually been built and something was learned from it. Slicing all
 siblings eagerly is just re-doing feature decomposition, one level lower.
 
-## Relationship to the planned gate
+## Relationship to the companion gates
 
-A companion Gradle gate (not built yet) is meant to catch what doesn't need
-judgment: the folder/numbering scheme staying consistent, a slice's
-`Status` matching what's actually on disk (no `ready for implementation`
-slice with children underneath it, no `needs splitting` slice without any),
-and `requirementsCoverage` extended down to leaf-slice IDs so a leaf can't
-stay silently unimplemented once its top-level requirement shows covered.
-Whether a given cut is actually *vertical* stays this skill's judgment call
-until that can be checked deterministically too.
+The `de.fourteen.gates.featureslicing` Gradle plugin's `sliceStructure` and
+`sliceCoverage` gates (see the deterministic-gates README) catch what
+doesn't need judgment: the folder/numbering scheme staying consistent, a
+slice's `Status` matching what's actually on disk (no `ready for
+implementation` slice with children underneath it, no `needs splitting`
+slice without any), and `requirementsCoverage` extended down to leaf-slice
+IDs so a leaf can't stay silently unimplemented once its top-level
+requirement shows covered. Whether a given cut is actually *vertical* stays
+this skill's judgment call — neither gate checks that yet.
