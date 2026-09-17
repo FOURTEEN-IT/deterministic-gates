@@ -467,10 +467,11 @@ rather than from a config file.
 The gates and skills above aren't independent tools bolted together; they're
 meant to support one flow, from a raw feature idea to a shipped, verified
 feature. `feature-delivery` is the recommended entry point for actually
-running it — it chains the five steps below on its own, so that a customer
-only ever sees two of them (idea clarification, and each round of demo and
-feedback), not the internal slicing/implementation/acceptance machinery in
-between. The five steps themselves:
+running it — it chains the five steps below on its own, launching each as
+its own subagent rather than inline, so that a customer only ever sees two
+of them (idea clarification, and each round of demo and feedback), and so
+that its own context doesn't fill up with the slice-tree/code/gate-output
+detail those subagents produce along the way. The five steps themselves:
 
 1. **Idea clarification** — before anything is cut into slices, the
    `idea-clarification` skill interrogates the idea itself, one question at
@@ -630,7 +631,9 @@ slices no one has cut further yet — the actual reason `feature-slicing`
 only ever looks at the first slice at any level; and `feature-delivery`,
 which chains all five of the above into the one loop a customer actually
 interacts with — idea clarification once, then a demo-and-feedback round
-per finished slice, nothing else surfaced to them. See
+per finished slice, nothing else surfaced to them, and every step run as
+its own subagent so none of their internal detail lingers in
+`feature-delivery`'s own context either. See
 [Development process](#development-process) for where all six fit.
 
 ## License

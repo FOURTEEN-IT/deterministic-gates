@@ -1,6 +1,6 @@
 ---
 name: feature-delivery
-description: Use when a customer brings a raw feature idea and wants it delivered end to end — the single entry point that chains idea-clarification, then loops feature-slicing, tdd-implementation, acceptance and demo-feedback automatically until the whole feature is done. The customer only sees idea-clarification's questions and demo-feedback's demos/questions; every internal step runs without exposing its detail to them. Not a replacement for any of the five skills it calls — it only sequences them.
+description: Use when a customer brings a raw feature idea and wants it delivered end to end — the single entry point that chains idea-clarification, then loops feature-slicing, tdd-implementation, acceptance and demo-feedback automatically until the whole feature is done. Every step runs as its own subagent, not inline: the customer only sees idea-clarification's questions and demo-feedback's demos/questions, and this skill's own context never fills up with slice-tree detail, code, or gate output. Not a replacement for any of the five skills it calls — it only sequences them.
 ---
 
 # Feature Delivery
@@ -16,6 +16,23 @@ everything else itself.
 Prerequisite: none to start — this is the entry point a customer's raw idea
 comes in through. It calls the other five skills; it doesn't duplicate
 their judgment.
+
+## Every step runs as a subagent
+
+Never invoke `idea-clarification`, `feature-slicing`, `tdd-implementation`,
+`acceptance` or `demo-feedback` inline in this skill's own conversation —
+launch each as its own subagent (Claude Code's Task tool). Hand the
+subagent only what it actually needs to do its one job (the feature ID, the
+slice ID, the relevant doc paths) rather than this conversation's full
+history, and read back only its final report, not its working.
+
+This is what keeps `feature-delivery` itself able to run an entire feature,
+slice after slice, without its own context filling up with a slice-tree
+dump, a diff, a test failure, or a `sliceStructure` report — none of that
+needs to persist once the subagent that produced it has reported back.
+`idea-clarification` and `demo-feedback` still reach the actual customer
+directly (they need to, to ask their questions) — running as a subagent
+changes where their internal reasoning lives, not who they talk to.
 
 ## What the customer sees
 
@@ -35,32 +52,36 @@ unprompted.
 
 ## The loop
 
-1. **Clarify.** Run `idea-clarification` on the customer's idea. This
-   creates the top-level feature doc and its requirements-register entry.
+1. **Clarify** (subagent, customer-facing). Run `idea-clarification` on the
+   customer's idea. This creates the top-level feature doc and its
+   requirements-register entry; its report back is just the new feature ID.
 
-2. **Advance the tree.** Run `feature-slicing` on that feature. It finds
-   the next slice needing attention (the lowest-numbered one not yet
-   `ready for implementation`) and cuts it, possibly recursively, until it
-   either reaches a leaf or determines — see "When the feature is done"
-   below — that nothing is left to cut anywhere in the tree.
+2. **Advance the tree** (subagent). Run `feature-slicing` on that feature.
+   It finds the next slice needing attention (the lowest-numbered one not
+   yet `ready for implementation`) and cuts it, possibly recursively, until
+   it either reaches a leaf or determines — see "When the feature is done"
+   below — that nothing is left to cut anywhere in the tree. Its report
+   back is just the resulting leaf's slice ID, or "tree complete."
 
 3. **Done already?** Check the completion condition below. If it holds,
    skip to "When the feature is done."
 
-4. **Implement.** Run `tdd-implementation`. It finds the first open leaf
-   (there is one now, from step 2) and drives it to green,
-   `sliceStructure`/`sliceCoverage`-passing completion.
+4. **Implement** (subagent). Run `tdd-implementation` on that leaf ID. It
+   drives the leaf to green, `sliceStructure`/`sliceCoverage`-passing
+   completion. Its report back is just pass/fail, not the tests or code it
+   wrote to get there.
 
-5. **Accept.** Run `acceptance` on that leaf. If it comes back
-   `**Accepted:** no`, fix what it found (return to step 4, or ask a human
-   if the fix itself needs a decision) and re-run acceptance — silently,
-   from the customer's side; this loop is not theirs to see. Only once it's
-   `yes` does this step count as done.
+5. **Accept** (subagent). Run `acceptance` on that leaf ID. If it comes
+   back `**Accepted:** no`, fix what it found (return to step 4, or ask a
+   human if the fix itself needs a decision) and re-run acceptance —
+   silently, from the customer's side; this loop is not theirs to see. Only
+   once it's `yes` does this step count as done.
 
-6. **Demo and collect feedback.** Run `demo-feedback` on the now-accepted
-   leaf — the customer-facing step. Whatever it folds into the untouched
-   siblings (edited docs, a newly inserted sibling) is exactly what step 2
-   picks up next time around.
+6. **Demo and collect feedback** (subagent, customer-facing). Run
+   `demo-feedback` on the now-accepted leaf ID. Whatever it folds into the
+   untouched siblings (edited docs, a newly inserted sibling) is exactly
+   what step 2 picks up next time around; its report back to this skill is
+   just a one-line summary of what changed in the plan, if anything.
 
 7. **Repeat from step 2** for the next slice `feature-slicing` finds.
 
