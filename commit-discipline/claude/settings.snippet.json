@@ -1,5 +1,5 @@
 {
-  "_comment": "Example .claude/settings.json wiring for hooks/main-branch-rule.sh, for a project that wants to copy the hook script directly instead of installing this directory as a Claude Code plugin. Adjust the path if you place the script somewhere other than ci/.",
+  "_comment": "Example .claude/settings.json wiring for the three hooks in hooks/, for a project that wants to copy the scripts directly instead of installing this directory as a Claude Code plugin. Adjust the paths if you place them somewhere other than ci/. GATES_MAIN_BRANCH configures main-branch-rule.sh, GATES_VERIFY_COMMAND the command finish-the-work.sh asks for; watch-pipeline.sh needs no configuration but does need curl, jq and a GitHub origin.",
   "hooks": {
     "PreToolUse": [
       {
@@ -10,6 +10,34 @@
             "command": "\"${CLAUDE_PROJECT_DIR:-.}/ci/main-branch-rule.sh\"",
             "timeout": 30,
             "statusMessage": "Checking branch/commit rules"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}/ci/watch-pipeline.sh\"",
+            "asyncRewake": true,
+            "timeout": 1800,
+            "statusMessage": "Watching the pipeline",
+            "rewakeMessage": "The pipeline watcher reports on this push:",
+            "rewakeSummary": "Pipeline watched"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}/ci/finish-the-work.sh\"",
+            "timeout": 30,
+            "statusMessage": "Checking the working tree"
           }
         ]
       }
