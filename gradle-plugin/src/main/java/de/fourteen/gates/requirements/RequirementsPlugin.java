@@ -7,6 +7,7 @@ import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.testing.Test;
 
 import java.util.List;
 
@@ -38,7 +39,12 @@ public class RequirementsPlugin implements Plugin<Project> {
                     task.getTestRuntimeClasspath().from(extension.getTestRuntimeClasspath());
                     task.getReportFile().convention(Reports.conventionFile(project, "requirements-coverage"));
                 });
-        requirementsCoverage.configure(t -> t.onlyIf(unused -> extension.getRequirementsFile().isPresent()));
+        // requirementsFile alone is not enough to mean "run this gate": all three gates read it,
+        // so keying off it made requirementsCoverage activate in a project that configured only
+        // featuresDir -- and then fail looking for a marker annotation that project never had a
+        // reason to put on its classpath. Test classes are what this gate actually needs.
+        requirementsCoverage.configure(t -> t.onlyIf(unused ->
+                extension.getRequirementsFile().isPresent() && !extension.getTestClassesDirs().isEmpty()));
 
         TaskProvider<TaggedRequirementsCoverageTask> taggedRequirementsCoverage = project.getTasks().register(
                 "taggedRequirementsCoverage", TaggedRequirementsCoverageTask.class, task -> {
@@ -105,7 +111,14 @@ public class RequirementsPlugin implements Plugin<Project> {
             SourceSet testSourceSet = sourceSets.getByName("test");
             extension.getTestClassesDirs().from(testSourceSet.getOutput().getClassesDirs());
             extension.getTestRuntimeClasspath().from(testSourceSet.getRuntimeClasspath());
-            extension.getTestResultsDirs().from(project.getLayout().getBuildDirectory().dir("test-results/test"));
+            // Taken from the test task's own report location rather than the equivalent literal
+            // path: a literal carries no task dependency, so `check` was free to run
+            // requirementsCoverage *before* test and judge the register against results that
+            // weren't written yet (or, without a clean, against the previous run's). Deriving it
+            // from the task makes Gradle order the two.
+            extension.getTestResultsDirs().from(
+                    project.getTasks().named(testSourceSet.getName(), Test.class)
+                            .map(test -> test.getReports().getJunitXml().getOutputLocation().get()));
         });
     }
 }

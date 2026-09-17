@@ -47,11 +47,17 @@ inevitably project-specific: file paths, a package prefix, an annotation's
 fully qualified name.
 
 Applying a plugin doesn't force its gate(s) on you: each task only attaches
-to `check` once its own required property is actually set (`domainModelDir`,
+to `check` once what it actually needs is there (`domainModelDir`,
 `requirementsFile`, `exceptionsRegisterFile`, ...) — apply
 `de.fourteen.gates.requirements` and configure only `featuresDir`, and only
 `featureDocs` runs. Applying a plugin and configuring nothing is a no-op,
 not a guaranteed build failure.
+
+`requirementsFile` alone doesn't decide this for the three requirements
+gates, since all three read it: `requirementsCoverage` additionally needs
+test classes (i.e. the `java` plugin, or `testClassesDirs` set by hand),
+`taggedRequirementsCoverage` needs `taggedSourceDirs`, and `featureDocs`
+needs `featuresDir`.
 
 `de.fourteen.gates.githooks` registers `installGitHooks`, a one-time opt-in
 task that copies a Conventional-Commits-checking `commit-msg` git hook into
@@ -156,8 +162,13 @@ requirements {
 
 layerDisjointness {
     domainPackagePrefix.set("com/example/domain")
-    innerCoverageReportXml.set(layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml"))
-    outerCoverageReportXmls.from(layout.buildDirectory.file("reports/jacoco/integrationTest/report.xml"))
+    // Point these at the report *tasks*, not at the paths they happen to write to: a literal
+    // path carries no task dependency, so Gradle is free to run the gate before the reports
+    // exist -- and, since 8.x, refuses the build outright rather than judging a stale file.
+    innerCoverageReportXml.set(
+        tasks.named<JacocoReport>("jacocoTestReport").flatMap { it.reports.xml.outputLocation })
+    outerCoverageReportXmls.from(
+        tasks.named<JacocoReport>("jacocoIntegrationTestReport").flatMap { it.reports.xml.outputLocation })
 }
 
 suppressionRegister {
@@ -172,6 +183,13 @@ test-classes, test-results and classpath inputs for `requirementsCoverage`
 default to the `test` source set if the `java` plugin is applied,
 additively — add more with `.from(...)` for extra test suites (integration,
 contract, etc.).
+
+When you do add one, hand `testResultsDirs` the *task*, not the path it
+writes to — `.from(tasks.named<Test>("integrationTest"))` rather than
+`.from(layout.buildDirectory.dir("test-results/integrationTest"))`. The
+default for `test` is wired that way for the same reason: a literal path
+carries no task dependency, and a gate that reads test results before the
+tests have run is not a gate.
 
 ### The conventions, with an example row each
 
