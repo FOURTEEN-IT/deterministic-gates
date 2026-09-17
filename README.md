@@ -267,7 +267,13 @@ void aKnownFlakyTest() { ... }
 ```
 
 and expects a markdown table (again matched by shape, any heading text)
-whose first column names the suppressed class or `Class.method`:
+whose first column names the suppressed class or `Class.method`. A simple
+name is enough as long as one suppression answers to it; where two classes
+in different packages share a name, qualify it
+(`demo.domain.PaymentGateway.retry`) — an ambiguous row fails the gate
+rather than counting for both. Rows whose first column can't name a class or
+method at all are skipped, so an unrelated table in the same file doesn't
+turn into stale entries:
 
 ```
 | Suppressed            | Reason                       | Date       |
@@ -336,5 +342,5 @@ included yet; its design is still being worked out.
 
 ## License
 
-Apache 2.0 with the Commons Clause — see [LICENSE](LICENSE). In short: free
-to use, modify and redistribute, not to sell as a standalone product.
+Apache 2.0 — see [LICENSE](LICENSE). Free to use, modify, redistribute and
+build on, commercially included.

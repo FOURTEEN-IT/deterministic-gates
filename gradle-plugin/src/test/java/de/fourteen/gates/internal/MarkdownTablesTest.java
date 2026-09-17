@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MarkdownTablesTest {
 
@@ -34,5 +36,19 @@ class MarkdownTablesTest {
     @Test
     void emptyTableProducesNoRows() {
         assertEquals(List.of(), MarkdownTables.dataRows(List.of("no table here at all")));
+    }
+
+    @Test
+    void recognisesWhatCanAndCannotNameAJavaElement() {
+        assertTrue(MarkdownTables.namesAJavaElement("PaymentGateway"));
+        assertTrue(MarkdownTables.namesAJavaElement("PaymentGateway.retry"));
+        assertTrue(MarkdownTables.namesAJavaElement("demo.domain.PaymentGateway.retry"));
+
+        // Prose from an unrelated table in the same register file: collected as a data row,
+        // since the convention fixes the row shape and not the heading above it, but it never
+        // named a class, so it isn't a stale register entry either.
+        assertFalse(MarkdownTables.namesAJavaElement("Test strategy"));
+        assertFalse(MarkdownTables.namesAJavaElement("2026-03-01"));
+        assertFalse(MarkdownTables.namesAJavaElement(""));
     }
 }

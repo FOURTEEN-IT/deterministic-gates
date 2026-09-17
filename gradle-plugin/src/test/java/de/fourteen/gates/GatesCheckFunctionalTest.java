@@ -325,6 +325,89 @@ class GatesCheckFunctionalTest {
                 "the report task must run before the gate reading it, output was:\n" + result.getOutput());
     }
 
+    @Test
+    void suppressionRegisterDistinguishesSameNamedClassesInDifferentPackages(@TempDir Path projectDir)
+            throws IOException {
+        new GateFixture(projectDir)
+                .plugin("de.fourteen.gates.suppressionregister")
+                .withJava()
+                .config("""
+                        suppressionRegister {
+                            exceptionsRegisterFile.set(layout.projectDirectory.file("docs/test-exceptions.md"))
+                            suppressionAnnotationFqns.set(listOf("demo.Req"))
+                        }
+                        """)
+                .file("src/test/java/demo/Req.java", REQUIREMENT_ANNOTATION)
+                .file("src/test/java/demo/domain/PaymentGatewayTest.java", """
+                        package demo.domain;
+                        import demo.Req;
+                        import org.junit.jupiter.api.Test;
+                        class PaymentGatewayTest {
+                            @Req void retry() {}
+                            @Test void chargesACard() {}
+                        }
+                        """)
+                .file("src/test/java/demo/adapter/PaymentGatewayTest.java", """
+                        package demo.adapter;
+                        import demo.Req;
+                        import org.junit.jupiter.api.Test;
+                        class PaymentGatewayTest {
+                            @Req void retry() {}
+                            @Test void talksToTheApi() {}
+                        }
+                        """)
+                // One row, written the way a simple name lets you write it -- and two distinct
+                // suppressions in the code. Identifying by simple name alone collapses both into
+                // the same key, so the register appears to account for a suppression nobody ever
+                // justified: the gate waves through exactly what it exists to catch.
+                .file("docs/test-exceptions.md", """
+                        | Suppressed               | Reason      | Date       |
+                        |--------------------------|-------------|------------|
+                        | PaymentGatewayTest.retry | flaky in CI | 2026-03-01 |
+                        """)
+                .runExpectingFailure("check");
+    }
+
+    @Test
+    void suppressionRegisterAcceptsQualifiedNamesForSameNamedClasses(@TempDir Path projectDir)
+            throws IOException {
+        new GateFixture(projectDir)
+                .plugin("de.fourteen.gates.suppressionregister")
+                .withJava()
+                .config("""
+                        suppressionRegister {
+                            exceptionsRegisterFile.set(layout.projectDirectory.file("docs/test-exceptions.md"))
+                            suppressionAnnotationFqns.set(listOf("demo.Req"))
+                        }
+                        """)
+                .file("src/test/java/demo/Req.java", REQUIREMENT_ANNOTATION)
+                .file("src/test/java/demo/domain/PaymentGatewayTest.java", """
+                        package demo.domain;
+                        import demo.Req;
+                        import org.junit.jupiter.api.Test;
+                        class PaymentGatewayTest {
+                            @Req void retry() {}
+                            @Test void chargesACard() {}
+                        }
+                        """)
+                .file("src/test/java/demo/adapter/PaymentGatewayTest.java", """
+                        package demo.adapter;
+                        import demo.Req;
+                        import org.junit.jupiter.api.Test;
+                        class PaymentGatewayTest {
+                            @Req void retry() {}
+                            @Test void talksToTheApi() {}
+                        }
+                        """)
+                .file("docs/test-exceptions.md", """
+                        | Suppressed                           | Reason           | Date       |
+                        |--------------------------------------|------------------|------------|
+                        | demo.domain.PaymentGatewayTest.retry  | flaky in CI      | 2026-03-01 |
+                        | demo.adapter.PaymentGatewayTest.retry | third-party 503s | 2026-03-02 |
+                        """)
+                .runTwiceWithConfigurationCache("check");
+    }
+
     /** A JaCoCo XML report covering the given lines of {@code demo/domain/Room.java}. */
     private static String jacocoReport(int... coveredLines) {
         StringBuilder lines = new StringBuilder();
