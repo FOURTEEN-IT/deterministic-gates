@@ -1,0 +1,18 @@
+{
+  "_comment": "Example .claude/settings.json wiring for hooks/acceptance-gate.sh, for a project that wants to copy the hook script directly instead of installing this directory as a Claude Code plugin. Adjust the path if you place the script somewhere other than ci/. Set GATES_FEATURES_DIR if your featuresDir isn't docs/features.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}/ci/acceptance-gate.sh\"",
+            "timeout": 30,
+            "statusMessage": "Checking feature/slice acceptance before commit"
+          }
+        ]
+      }
+    ]
+  }
+}

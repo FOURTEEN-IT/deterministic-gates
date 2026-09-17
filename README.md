@@ -32,6 +32,7 @@ idea-clarification/      claude/                (skill)
 open-decisions/          claude/                (skill + hook)
 staged-verification/     claude/                (skill)
 tdd-implementation/      claude/                (skill)
+acceptance/              claude/                (skill + hook)
 commit-discipline/       gradle/  claude/       (git hook install task + skill + hook)
 structure-doc/           gradle/
 requirements/            gradle/  annotations/  (three gates + @Requirement)
@@ -76,6 +77,7 @@ observe.
 | `feature-slicing/` | `sliceStructure`, `sliceCoverage` gates | `feature-slicing` skill |
 | `idea-clarification/` | — | `idea-clarification` skill |
 | `tdd-implementation/` | — | `tdd-implementation` skill |
+| `acceptance/` | — | `acceptance` skill, `acceptance-gate.sh` hook |
 
 `requirements/` and `commit-discipline/` are the only directories with more
 than one thing inside, and each time for a concrete, checked reason, not
@@ -435,10 +437,10 @@ changed. That judgment call is what the `release-impact` skill is for.
 
 Point Claude Code at one of `adr/claude/`, `open-decisions/claude/`,
 `staged-verification/claude/`, `commit-discipline/claude/`,
-`feature-slicing/claude/`, `idea-clarification/claude/` or
-`tdd-implementation/claude/` as a plugin directory (locally, or once
-published, via a marketplace) to get that
-directory's skill — install as many or as few as you want.
+`feature-slicing/claude/`, `idea-clarification/claude/`,
+`tdd-implementation/claude/` or `acceptance/claude/` as a plugin directory
+(locally, or once published, via a marketplace) to get that directory's
+skill — install as many or as few as you want.
 
 To use a hook, copy its script into your project and wire it in
 `.claude/settings.json`:
@@ -447,12 +449,13 @@ To use a hook, copy its script into your project and wire it in
 |------|----------|-------|------|
 | `main-branch-rule.sh` | `commit-discipline/claude/hooks/` | `PreToolUse` (Bash) | Blocks creating a new branch/worktree; blocks a commit whose branch is behind its upstream |
 | `session-start.sh` | `open-decisions/claude/hooks/` | `SessionStart` | Surfaces working-tree state and any open decisions at the start of a session |
+| `acceptance-gate.sh` | `acceptance/claude/hooks/` | `PreToolUse` (Bash) | Blocks a feat/fix commit that stages a featuresDir doc without that doc's "Accepted: yes" line |
 
 Each has its own `settings.snippet.json` next to it (in the same `claude/`
-directory) showing the exact wiring. Both hooks read their one configurable
-value from an environment variable (`GATES_MAIN_BRANCH`,
-`GATES_OPEN_DECISIONS_FILE`) with a sensible default, rather than from a
-config file.
+directory) showing the exact wiring. All three hooks read their configurable
+value(s) from an environment variable (`GATES_MAIN_BRANCH`,
+`GATES_OPEN_DECISIONS_FILE`, `GATES_FEATURES_DIR`) with a sensible default,
+rather than from a config file.
 
 ## Development process
 
@@ -552,23 +555,25 @@ feature:
    field and stops; handing off to the next sibling slice or to acceptance
    is left to whoever invoked it.
 
-4. **Acceptance against the original description** (planned) — once a slice
-   is implemented, it's checked back against what was actually asked for,
-   not only against the tests written for it: does the finished feature do
-   what the original description said, or did the implementation quietly
-   narrow, widen or reinterpret it along the way. `featureDocs` is a
-   different, narrower check — it only enforces that a feature doc follows
-   the required structure and references real requirement IDs, not that the
-   implementation matches the doc. This step triggers automatically whenever
-   a `fix` or `feat` commit is made (the two Conventional-Commits types that
-   actually change behavior), the same commit `installGitHooks`'s
-   `commit-msg` hook already parses the type of — so the acceptance check
-   piggybacks on a signal that's already there rather than needing a new
-   trigger. Not yet covered by any gate or skill here.
+4. **Acceptance against the original description** — the `acceptance` skill
+   checks the finished slice back against what was actually asked for, not
+   only against the tests written for it: does it match the doc's
+   `Motivation`, `Acceptance Criteria`, `Scenarios` and `User Outcome`, or
+   did the implementation quietly narrow, widen or reinterpret them along
+   the way. `featureDocs`/`sliceStructure` are different, narrower checks —
+   they only enforce that a doc follows the required structure, never that
+   the implementation matches what it says. This step is triggered by its
+   companion `acceptance-gate.sh` hook, which blocks a `fix`/`feat` commit
+   (the two Conventional-Commits types that actually change behavior) from
+   going through at all while a staged featuresDir doc lacks the skill's
+   `**Accepted:** yes` line — reusing the same commit-type signal
+   `installGitHooks`'s `commit-msg` hook already parses, but enforced
+   *before* the commit rather than only observed after. Like every other
+   structural check here, the hook confirms the marker's presence, never
+   that the judgment behind it was done honestly — that stays the skill's.
 
-Step 4 is not built yet — it's named here so the gap is visible, not to
-claim tooling that doesn't exist. Steps 1 through 3 exist today: their
-skills, and step 2's two gates.
+All four steps exist today: their skills, step 2's two gates, and step 4's
+companion hook.
 
 ## Status
 
@@ -584,15 +589,17 @@ since `@Requirement`/`@RegisteredSuppression` end up scattered across a
 consuming project's test code, more expensive to change later than a Gradle
 property name.
 
-Three more Claude Code skills are now included: `idea-clarification`, which
+Four more Claude Code skills are now included, completing the whole
+development-process chain end to end: `idea-clarification`, which
 interviews a raw feature idea and writes the resulting top-level feature
 doc; `feature-slicing`, which turns that doc into vertically-sliced,
 independently shippable pieces of work, along with its companion
-`sliceStructure`/`sliceCoverage` Gradle gates; and `tdd-implementation`,
-which drives one leaf slice through red/green/refactor, one acceptance
-criterion at a time. See [Development process](#development-process) for
-where all three fit; the acceptance-against-description step after them is
-still planned.
+`sliceStructure`/`sliceCoverage` Gradle gates; `tdd-implementation`, which
+drives one leaf slice through red/green/refactor, one acceptance criterion
+at a time; and `acceptance`, which checks the finished slice back against
+its doc and, via its companion `acceptance-gate.sh` hook, blocks a
+`fix`/`feat` commit until that check has actually been done. See
+[Development process](#development-process) for where all four fit.
 
 ## License
 
