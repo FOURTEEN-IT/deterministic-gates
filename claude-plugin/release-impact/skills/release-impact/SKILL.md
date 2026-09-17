@@ -10,11 +10,12 @@ release tool (semantic-release or similar) and a deploy pipeline wired to
 that release, the commit type you type is not decoration — it decides
 whether this change ships, and when.
 
-`installGitHooks` (this plugin's git hook) checks that the type is *valid*
-Conventional Commits format — not that it *matches* the actual change.
-That gap is deliberately not automated (matching the change to the type
-requires judgment: too many legitimate exceptions for a mechanical rule to
-get right) — hence a skill here, not a gate.
+If this project uses `installGitHooks` from the separate deterministic-gates
+Gradle plugin, its `commit-msg` hook checks that the type is *valid*
+Conventional Commits format — not that it *matches* the actual change. That
+gap is deliberately not automated (matching the change to the type requires
+judgment: too many legitimate exceptions for a mechanical rule to get
+right) — hence a skill here, not a gate.
 
 ## What each type typically triggers
 

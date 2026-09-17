@@ -1,0 +1,11 @@
+{
+  "name": "adr",
+  "description": "Records a technical decision as an Architecture Decision Record with the next free number, in Context/Decision/Consequences form.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/adr"
+  ]
+}

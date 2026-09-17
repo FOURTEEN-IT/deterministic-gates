@@ -1,0 +1,11 @@
+{
+  "name": "open-decisions",
+  "description": "Carries an answered open-decisions-register question through every place it needs to land, so it doesn't end up known only inside a chat.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/open-decisions"
+  ]
+}

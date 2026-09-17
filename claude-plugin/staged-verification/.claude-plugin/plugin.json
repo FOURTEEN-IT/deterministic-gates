@@ -1,0 +1,11 @@
+{
+  "name": "staged-verification",
+  "description": "Runs cheap, local checks before expensive, broad ones -- stop at the first red instead of waiting for a full build to fail somewhere in the middle.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/staged-verification"
+  ]
+}

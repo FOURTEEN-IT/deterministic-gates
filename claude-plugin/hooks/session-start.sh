@@ -29,8 +29,9 @@ else
     tree_state="$dirty_count changed file(s) -- see git status"
 fi
 
-# Standing relative to upstream: the same measure main-branch-rule.sh rejects
-# a commit on (pull before commit). No upstream, no claim made.
+# Standing relative to upstream: the same measure a pull-before-commit rule
+# (e.g. this repo's main-branch-rule.sh, if in use) would reject a commit
+# on. No upstream, no claim made.
 if git rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
     behind="$(git rev-list --count 'HEAD..@{upstream}' 2>/dev/null || echo 0)"
     ahead="$(git rev-list --count '@{upstream}..HEAD' 2>/dev/null || echo 0)"

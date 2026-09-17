@@ -1,0 +1,11 @@
+{
+  "name": "release-impact",
+  "description": "Makes a commit's release/deploy consequence explicit before typing its Conventional Commits type -- a deploy decision, not just a label.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/release-impact"
+  ]
+}

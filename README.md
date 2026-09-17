@@ -76,14 +76,29 @@ Both gates default to these two (`suppressionRegister` also checks
 one). Add the dependency and you're done — no extension configuration needed
 for either gate unless you'd rather use an annotation you already have.
 
-### Claude Code plugin (`claude-plugin/`)
+### Claude Code plugins (`claude-plugin/`)
 
-| Skill | For |
-|-------|-----|
-| `adr` | Recording a technical decision as an Architecture Decision Record |
-| `open-decisions` | Carrying an answered open question through every place it needs to land |
-| `staged-verification` | Running cheap, local checks before expensive, broad ones — stop at the first red |
-| `release-impact` | Making a commit's release/deploy consequence explicit before typing its Conventional Commits type |
+Four independent plugins, one per skill — none of them share an
+implementation the way the requirements gates do (checked: no skill's own
+logic breaks without another; the only cross-references were a name-drop in
+prose, softened below to not assume the other is installed). Install just
+the one(s) you want.
+
+| Plugin dir | Skill | For |
+|------------|-------|-----|
+| `adr/` | `adr` | Recording a technical decision as an Architecture Decision Record |
+| `open-decisions/` | `open-decisions` | Carrying an answered open question through every place it needs to land |
+| `staged-verification/` | `staged-verification` | Running cheap, local checks before expensive, broad ones — stop at the first red |
+| `release-impact/` | `release-impact` | Making a commit's release/deploy consequence explicit before typing its Conventional Commits type |
+
+`open-decisions` mentions `adr` as the recommended way to record a purely
+technical decision, and falls back gracefully ("record it however this
+project normally does") if `adr` isn't installed — the only real link
+between any two of the four, and even that costs nothing to not have.
+
+Two hooks, kept as plain scripts rather than wrapped in their own plugins
+each — there's no forced-bundling problem to fix here: they're already two
+separate files, already documented as independently copyable.
 
 | Hook | Event | Does |
 |------|-------|------|
@@ -273,11 +288,13 @@ It checks *format* only (does the subject line parse as `type(scope): ...`
 with an Angular-preset type) — not whether the type matches what actually
 changed. That judgment call is what the `release-impact` skill below is for.
 
-## Using the Claude Code plugin
+## Using the Claude Code plugins
 
-Point Claude Code at `claude-plugin/` as a plugin directory (locally, or
-once published, via a marketplace) to get its four skills. To use only the
-two hooks without the rest, copy `claude-plugin/hooks/*.sh` into your
+Point Claude Code at one of `claude-plugin/adr/`,
+`claude-plugin/open-decisions/`, `claude-plugin/staged-verification/` or
+`claude-plugin/release-impact/` as a plugin directory (locally, or once
+published, via a marketplace) to get that one skill — install as many or as
+few as you want. To use the hooks, copy `claude-plugin/hooks/*.sh` into your
 project and wire them in `.claude/settings.json` — see
 `claude-plugin/settings.snippet.json` for the exact shape. Both hooks read
 their one configurable value from an environment variable

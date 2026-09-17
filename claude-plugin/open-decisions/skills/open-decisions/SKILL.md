@@ -22,10 +22,12 @@ you don't already know where it lives) before doing anything else.
    future conversation) shouldn't have to wonder whether it was considered
    and rejected, or just never came up.
 
-2. **Write an ADR** for a purely technical decision (see the `adr` skill).
-   A decision with domain/business consequences and a technical one often
-   needs both: a short ADR entry plus an update to wherever the project
-   states its actual current behavior.
+2. **Write an ADR** for a purely technical decision — use the separate `adr`
+   plugin's skill if it's installed, otherwise record it however this
+   project normally documents technical decisions. A decision with
+   domain/business consequences and a technical one often needs both: a
+   short ADR entry plus an update to wherever the project states its actual
+   current behavior.
 
 3. **Update the requirements/behavior doc**, if the decision changes what
    the system is supposed to do. Whatever document a project treats as
@@ -34,10 +36,11 @@ you don't already know where it lives) before doing anything else.
    progress) is the *request*; the requirements doc is the *standing*
    truth, and the two must not diverge.
 
-4. **Update the requirements register**, if this project uses a
-   `requirementsCoverage`/`featureDocs` gate from this plugin — a newly
-   answered decision often creates or changes an ID that a gate now expects
-   a test or feature doc to reference.
+4. **Update the requirements register**, if this project uses the
+   `requirementsCoverage`/`featureDocs` gates (from the separate
+   deterministic-gates Gradle plugin) — a newly answered decision often
+   creates or changes an ID that a gate now expects a test or feature doc
+   to reference.
 
 ## Why all four
 
