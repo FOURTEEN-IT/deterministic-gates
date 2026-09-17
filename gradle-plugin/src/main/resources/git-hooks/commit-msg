@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Rejects a commit whose subject line isn't valid Conventional Commits format.
+#
+# The allowed types are the Angular preset's, the same list
+# @semantic-release/commit-analyzer uses by default -- so if your release tooling follows that
+# convention, a commit this hook accepts is also one your tooling understands, and one it
+# rejects would otherwise fail silently (a misspelled type like "fixed:" is accepted as a
+# subject line, but semantic-release skips it: no release, no error).
+#
+# Installed by the `installGitHooks` Gradle task from this plugin, into .git/hooks/commit-msg.
+# Runs on the message file git passes as $1.
+
+set -euo pipefail
+
+message_file="$1"
+subject_line="$(head -n 1 "$message_file")"
+
+allowed_types="build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test"
+pattern="^(${allowed_types})(\([a-zA-Z0-9_.-]+\))?!?: .+"
+
+if [[ ! "$subject_line" =~ $pattern ]]; then
+    echo "commit-msg: subject line is not Conventional Commits format:" >&2
+    echo "  $subject_line" >&2
+    echo "Expected: <type>(<scope>)?: <description>, type one of: ${allowed_types//|/, }" >&2
+    exit 1
+fi
