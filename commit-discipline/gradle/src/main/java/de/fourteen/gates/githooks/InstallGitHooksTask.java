@@ -2,6 +2,8 @@ package de.fourteen.gates.githooks;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 
 import java.io.IOException;
@@ -18,9 +20,18 @@ import java.util.Set;
  */
 public abstract class InstallGitHooksTask extends DefaultTask {
 
+    /**
+     * The checkout whose {@code .git/hooks} the hook is installed into, set by the plugin at
+     * configuration time -- reaching for {@code getProject()} during execution is unsupported
+     * with the configuration cache. Not an input: this task's whole purpose is a side effect
+     * outside the build directory, so it is never up-to-date.
+     */
+    @Internal
+    public abstract DirectoryProperty getGitRootDir();
+
     @TaskAction
     public void install() {
-        Path gitDir = getProject().getRootDir().toPath().resolve(".git");
+        Path gitDir = getGitRootDir().get().getAsFile().toPath().resolve(".git");
         if (!Files.isDirectory(gitDir)) {
             throw new GradleException("No .git directory found at " + gitDir + " -- run this from a git checkout.");
         }

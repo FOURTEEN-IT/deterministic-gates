@@ -2,6 +2,7 @@ package de.fourteen.gates.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Picks the data rows out of a standard markdown table (header row, then a separator row of
@@ -10,7 +11,22 @@ import java.util.List;
  */
 public final class MarkdownTables {
 
+    /** {@code Class}, {@code Class.method} or a package-qualified form of either. */
+    private static final Pattern JAVA_NAME =
+            Pattern.compile("[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)*");
+
     private MarkdownTables() {
+    }
+
+    /**
+     * Whether a first column can name a Java class or method at all. Data rows are collected from
+     * every table in a file, since the convention fixes the row shape and not the heading above
+     * it -- so an unrelated table in the same document used to turn into register entries, each
+     * reported as a suppression that had been removed from the code. A row whose first column
+     * couldn't name a class or method never referred to one.
+     */
+    public static boolean namesAJavaElement(String firstColumn) {
+        return JAVA_NAME.matcher(firstColumn).matches();
     }
 
     public static List<String> dataRows(List<String> lines) {

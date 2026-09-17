@@ -17,6 +17,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew build
         working-directory: gradle-plugin
+      # A fresh runner only ever *stores* a configuration cache entry, and reaching for the
+      # project at execution time fails only when one is *reused*. Building a second time is
+      # what puts that path under CI.
+      - name: build again, reusing the configuration cache
+        run: |
+          # tee, not a plain redirect: a check whose own output never reaches the log leaves
+          # nothing to read afterwards -- the run either went green or it didn't, with no way
+          # to tell a real second build from one that somehow never happened.
+          # pipefail, because the runner's shell is `bash -e` without it: piping into tee would
+          # otherwise hand the step tee's exit code and swallow a failing build entirely.
+          set -o pipefail
+          ./gradlew build 2>&1 | tee second-run.log
+          grep -q "Reusing configuration cache" second-run.log
+        working-directory: gradle-plugin
 
   annotations:
     runs-on: ubuntu-latest

@@ -13,6 +13,11 @@ import java.util.regex.Pattern;
  * Parses the requirements register convention this plugin expects: a markdown table with rows
  * of the form {@code | id | ... | category |}, matched anywhere in the file regardless of
  * surrounding headings. See the README for the exact format and an example row.
+ *
+ * <p>Header and separator rows are dropped by {@link MarkdownTables#dataRows} rather than by the
+ * row pattern below. Relying on the pattern alone meant a register whose header happened to be
+ * lower case ({@code | id | reference | category |}) contributed a requirement called "id" in a
+ * category called "category" -- a phantom the gate then demanded coverage for.
  */
 public final class RequirementsTable {
 
@@ -27,7 +32,7 @@ public final class RequirementsTable {
 
     public static List<Row> parse(File requirementsFile) {
         List<Row> rows = new ArrayList<>();
-        for (String line : readLines(requirementsFile)) {
+        for (String line : MarkdownTables.dataRows(readLines(requirementsFile))) {
             Matcher matcher = ROW.matcher(line);
             if (matcher.matches()) {
                 rows.add(new Row(matcher.group(1), matcher.group(2)));

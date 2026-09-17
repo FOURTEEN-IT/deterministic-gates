@@ -46,4 +46,19 @@ class RequirementsTableTest {
         // doesn't match "| id | ... | category |" either -- both are correctly ignored.
         assertEquals(Set.of(), RequirementsTable.allIds(file.toFile()));
     }
+
+    @Test
+    void doesNotReadALowerCaseHeaderRowAsARequirement(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("requirements.md");
+        Files.writeString(file, """
+                | id  | reference           | category |
+                |-----|---------------------|----------|
+                | 4.2 | Players join a room | backend  |
+                """);
+
+        // "| id | reference | category |" matches the row pattern as readily as a real row does;
+        // it is the separator line underneath that marks it as the header.
+        assertEquals(Set.of("4.2"), RequirementsTable.allIds(file.toFile()));
+        assertEquals(Set.of("4.2"), RequirementsTable.idsInCategory(file.toFile(), "backend"));
+    }
 }

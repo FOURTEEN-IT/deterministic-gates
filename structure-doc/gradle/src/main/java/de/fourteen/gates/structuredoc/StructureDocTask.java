@@ -3,12 +3,14 @@ package de.fourteen.gates.structuredoc;
 import de.fourteen.gates.internal.Reports;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputDirectory;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
@@ -34,7 +36,8 @@ import java.util.stream.Collectors;
  */
 public abstract class StructureDocTask extends DefaultTask {
 
-    private static final Set<String> IGNORED_DIRECTORIES =
+    /** Directories a source file is never looked for in; excluded when the plugin builds {@link #getProjectFiles()}. */
+    public static final Set<String> IGNORED_DIRECTORIES =
             Set.of("node_modules", "build", ".git", ".gradle", "bin");
 
     private static final Pattern NAMED_FILE = Pattern.compile(
@@ -47,6 +50,17 @@ public abstract class StructureDocTask extends DefaultTask {
     @InputDirectory
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract DirectoryProperty getDomainModelDir();
+
+    /**
+     * Every file the doc's filenames are checked against. Declared as a task input rather than
+     * walked from {@code getProject().getProjectDir()} at execution time: reaching for the
+     * project during execution is unsupported with the configuration cache, and it made the
+     * project tree an undeclared input, so up-to-date checks silently missed a file appearing
+     * or disappearing.
+     */
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    public abstract ConfigurableFileCollection getProjectFiles();
 
     @Input
     public abstract ListProperty<String> getAllowedMissingNames();
@@ -67,7 +81,9 @@ public abstract class StructureDocTask extends DefaultTask {
         }
 
         Set<String> existingNames = new HashSet<>();
-        collectFileNames(getProject().getProjectDir(), existingNames);
+        for (File file : getProjectFiles().getFiles()) {
+            existingNames.add(file.getName());
+        }
 
         List<String> missing = namedFiles.stream()
                 .filter(name -> !existingNames.contains(name) && !allowedMissing.contains(name))
@@ -110,22 +126,6 @@ public abstract class StructureDocTask extends DefaultTask {
                 message.append("domain type(s) missing from the doc: ").append(unmentioned);
             }
             throw new GradleException(message.toString());
-        }
-    }
-
-    private static void collectFileNames(File dir, Set<String> names) {
-        File[] children = dir.listFiles();
-        if (children == null) {
-            return;
-        }
-        for (File child : children) {
-            if (child.isDirectory()) {
-                if (!IGNORED_DIRECTORIES.contains(child.getName())) {
-                    collectFileNames(child, names);
-                }
-            } else {
-                names.add(child.getName());
-            }
         }
     }
 

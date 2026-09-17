@@ -15,6 +15,7 @@ public class GitHooksPlugin implements Plugin<Project> {
         project.getTasks().register("installGitHooks", InstallGitHooksTask.class, task -> {
             task.setGroup("verification");
             task.setDescription("Copies the bundled commit-msg hook into .git/hooks.");
+            task.getGitRootDir().set(project.getRootDir());
         });
     }
 }

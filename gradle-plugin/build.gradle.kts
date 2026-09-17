@@ -99,6 +99,17 @@ gradlePlugin {
 
 tasks.test {
     useJUnitPlatform()
+
+    // The functional tests build real consumer projects that need JUnit on *their* test
+    // classpath. Handing them the jars this build already resolved keeps those fixtures off the
+    // network: a gate test that can fail because a repository rate-limits isn't a gate test.
+    val junitJars = configurations.testRuntimeClasspath.map { classpath ->
+        classpath.files.filter { jar ->
+            listOf("junit", "opentest4j", "apiguardian").any { jar.name.startsWith(it) }
+        }.joinToString(File.pathSeparator) { it.absolutePath }
+    }
+    inputs.property("junitFixtureClasspath", junitJars)
+    doFirst { systemProperty("gates.junitClasspath", junitJars.get()) }
 }
 
 tasks.named("check") {
