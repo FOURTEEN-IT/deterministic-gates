@@ -27,6 +27,7 @@ sourceSets {
         java {
             srcDir("../requirements/annotations/src/main/java")
             srcDir("../suppression-register/annotations/src/main/java")
+            srcDir("../criticality/annotations/src/main/java")
         }
     }
 }

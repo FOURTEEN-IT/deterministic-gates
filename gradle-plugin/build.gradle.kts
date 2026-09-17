@@ -29,6 +29,8 @@ sourceSets {
             srcDir("../layer-disjointness/gradle/src/main/java")
             srcDir("../suppression-register/gradle/src/main/java")
             srcDir("../commit-discipline/gradle/src/main/java")
+            srcDir("../criticality/gradle/src/main/java")
+            srcDir("../test-layers/gradle/src/main/java")
         }
         resources {
             srcDir("../commit-discipline/gradle/src/main/resources")
@@ -39,6 +41,8 @@ sourceSets {
             srcDir("../structure-doc/gradle/src/test/java")
             srcDir("../requirements/gradle/src/test/java")
             srcDir("../suppression-register/gradle/src/test/java")
+            srcDir("../criticality/gradle/src/test/java")
+            srcDir("../test-layers/gradle/src/test/java")
         }
     }
 }
@@ -53,12 +57,14 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-// Five plugins, not one: structureDoc, layerDisjointness and suppressionRegister check three
-// unrelated things and can be adopted independently; requirementsCoverage,
+// Seven plugin ids, not one: structureDoc, layerDisjointness, suppressionRegister, criticality
+// and testLayers check unrelated things and can be adopted independently; requirementsCoverage,
 // taggedRequirementsCoverage and featureDocs stay together in "requirements" because all three
 // read the same requirements register through the same parser (see
 // requirements/RequirementsExtension.java) -- splitting those three further would mean
-// duplicating that parser instead of sharing it.
+// duplicating that parser instead of sharing it. criticality reads that register too, through
+// the same shared parser, but stands alone because its other half -- the level recorded at the
+// code, and the target set derived from it -- is useful with no register in sight.
 gradlePlugin {
     plugins {
         create("structureDoc") {
@@ -87,6 +93,20 @@ gradlePlugin {
             displayName = "Deterministic Gates: suppressionRegister"
             description = "Checks that every suppression annotation in the code has a " +
                 "matching, dated register entry, and vice versa."
+        }
+        create("criticality") {
+            id = "de.fourteen.gates.criticality"
+            implementationClass = "de.fourteen.gates.criticality.CriticalityPlugin"
+            displayName = "Deterministic Gates: criticality"
+            description = "Checks that the criticality recorded in the code names real " +
+                "requirement IDs and that no level a build derives from is empty."
+        }
+        create("testLayers") {
+            id = "de.fourteen.gates.testlayers"
+            implementationClass = "de.fourteen.gates.testlayers.TestLayersPlugin"
+            displayName = "Deterministic Gates: testLayers"
+            description = "Checks that every test method belongs to exactly one test layer, " +
+                "and that no named layer is empty."
         }
         create("gitHooks") {
             id = "de.fourteen.gates.githooks"
