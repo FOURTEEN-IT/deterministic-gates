@@ -391,16 +391,18 @@ feature:
    at the first red stage instead of waiting on a full run to fail somewhere
    in the middle.
 
-4. **Acceptance against the original description** — once a slice is done,
-   it's checked back against what was actually asked for, not only against
-   the tests written for it. This is where `featureDocs` earns its keep: a
-   feature doc's `Acceptance Criteria` and `Scenarios` sections are the
-   original description in checkable form, and the gate refuses a doc that
-   drifts from the requirements register rather than letting the code drift
-   from the doc unnoticed.
+4. **Acceptance against the original description** (planned) — once a slice
+   is implemented, it's checked back against what was actually asked for,
+   not only against the tests written for it: does the finished feature do
+   what the original description said, or did the implementation quietly
+   narrow, widen or reinterpret it along the way. `featureDocs` is a
+   different, narrower check — it only enforces that a feature doc follows
+   the required structure and references real requirement IDs, not that the
+   implementation matches the doc. This step is judgment, not yet covered by
+   any gate or skill here.
 
-Steps 1 and 2 are not built yet — they're named here so the gap is visible,
-not to claim tooling that doesn't exist.
+Steps 1, 2 and 4 are not built yet — they're named here so the gap is
+visible, not to claim tooling that doesn't exist.
 
 ## Status
 
