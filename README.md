@@ -1,8 +1,8 @@
 # deterministic-gates
 
 Deterministic, judgment-free build gates for JVM projects — plus a small set
-of companion Claude Code skills and hooks — extracted from real use in a
-production project.
+of companion Claude Code skills and hooks — developed for real-world use,
+not as an academic exercise.
 
 ## The idea
 
@@ -370,17 +370,18 @@ config file.
 
 ## Status
 
-This is a first extraction from a single origin project, done in one pass —
-including this directory layout itself, reorganized once already (by
+This is an early, first-pass version of this layout, done in one pass —
+including the directory structure itself, reorganized once already (by
 subject matter first, technology second) after the initial technology-first
-cut turned out to obscure which pieces actually belonged together. Expect
+cut turned out to obscure which pieces actually belonged together. This has
+not yet been battle-tested across multiple consuming projects, so expect
 the extensions' property names and the exact file conventions to still move
 a little as a second and third consuming project exercise them. Semantic
-versioning starts in earnest once there's evidence beyond the original
-project that the shape is right — the `annotations` artifact especially,
-since `@Requirement`/`@RegisteredSuppression` end up scattered across a
-consuming project's test code, more expensive to change later than a Gradle
-property name.
+versioning starts in earnest once there's evidence from more than one
+consuming project that the shape is right — the `annotations` artifact
+especially, since `@Requirement`/`@RegisteredSuppression` end up scattered
+across a consuming project's test code, more expensive to change later than
+a Gradle property name.
 
 A fifth Claude Code skill — turning an idea into vertically-sliced,
 independently shippable pieces of work — is planned but deliberately not
