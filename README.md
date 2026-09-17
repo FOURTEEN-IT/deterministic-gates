@@ -28,6 +28,7 @@ Organized by subject matter first, technology second — a directory is
 
 ```
 adr/                     claude/                (skill)
+idea-clarification/      claude/                (skill)
 open-decisions/          claude/                (skill + hook)
 staged-verification/     claude/                (skill)
 commit-discipline/       gradle/  claude/       (git hook install task + skill + hook)
@@ -72,6 +73,7 @@ observe.
 | `adr/` | — | `adr` skill |
 | `staged-verification/` | — | `staged-verification` skill |
 | `feature-slicing/` | `sliceStructure`, `sliceCoverage` gates | `feature-slicing` skill |
+| `idea-clarification/` | — | `idea-clarification` skill |
 
 `requirements/` and `commit-discipline/` are the only directories with more
 than one thing inside, and each time for a concrete, checked reason, not
@@ -430,7 +432,8 @@ changed. That judgment call is what the `release-impact` skill is for.
 ## Using the Claude Code plugins
 
 Point Claude Code at one of `adr/claude/`, `open-decisions/claude/`,
-`staged-verification/claude/` or `commit-discipline/claude/` as a plugin
+`staged-verification/claude/`, `commit-discipline/claude/`,
+`feature-slicing/claude/` or `idea-clarification/claude/` as a plugin
 directory (locally, or once published, via a marketplace) to get that
 directory's skill — install as many or as few as you want.
 
@@ -454,11 +457,16 @@ The gates and skills above aren't independent tools bolted together; they're
 meant to support one flow, from a raw feature idea to a shipped, verified
 feature:
 
-1. **Idea clarification** (planned) — before anything is cut into slices, a
-   skill interrogates the idea itself: what's actually being asked for, what's
-   assumed but unstated, where the edges are. Its job is to surface gaps
-   while they're still cheap to close, not after a slice has already been cut
-   around a wrong assumption.
+1. **Idea clarification** — before anything is cut into slices, the
+   `idea-clarification` skill interrogates the idea itself, one question at
+   a time: target user, scope boundary, success criterion, assumptions and
+   risks, and criticality, then keeps asking past that fixed minimum as
+   long as it can point to a genuine gap. Its job is to surface gaps while
+   they're still cheap to close, not after a slice has already been cut
+   around a wrong assumption. It then writes the resulting top-level
+   feature doc itself (assigning the next free requirements-register ID)
+   rather than leaving the clarified answers to only exist in the
+   conversation that produced them — see the skill for why.
 
 2. **Vertical slicing** — the clarified idea is cut into small, atomic,
    independently shippable vertical slices — each one a complete path
@@ -548,9 +556,9 @@ feature:
    piggybacks on a signal that's already there rather than needing a new
    trigger. Not yet covered by any gate or skill here.
 
-Steps 1, 3 and 4 are not built yet — they're named here so the gap is
-visible, not to claim tooling that doesn't exist. Step 2 is the exception:
-its skill and both gates exist today.
+Steps 3 and 4 are not built yet — they're named here so the gap is visible,
+not to claim tooling that doesn't exist. Steps 1 and 2 exist today: their
+skills, and step 2's two gates.
 
 ## Status
 
@@ -566,12 +574,14 @@ since `@Requirement`/`@RegisteredSuppression` end up scattered across a
 consuming project's test code, more expensive to change later than a Gradle
 property name.
 
-A fifth Claude Code skill, `feature-slicing` — turning a feature into
-vertically-sliced, independently shippable pieces of work — is now included,
-along with its companion `sliceStructure`/`sliceCoverage` Gradle gates. An
-idea-clarifying skill meant to precede it (writing the feature doc
-`feature-slicing` starts from) is planned but doesn't exist yet. See
-[Development process](#development-process) for where both fit.
+Two more Claude Code skills are now included: `idea-clarification`, which
+interviews a raw feature idea and writes the resulting top-level feature
+doc, and `feature-slicing`, which turns that doc into vertically-sliced,
+independently shippable pieces of work, along with its companion
+`sliceStructure`/`sliceCoverage` Gradle gates. See
+[Development process](#development-process) for where both fit; the
+TDD-implementation and acceptance-against-description steps after them are
+still planned.
 
 ## License
 
