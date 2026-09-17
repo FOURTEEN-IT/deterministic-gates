@@ -107,7 +107,7 @@ own `javax.xml.parsers`) or reflects over compiled classes.
 | | | `featureDocs` | Every feature doc follows the template, states exactly one criticality, stays under the acceptance-criteria limit, and references only real requirement IDs |
 | `de.fourteen.gates.layerdisjointness` | `layerDisjointness {}` | `layerDisjointness` | No line of domain code is covered only by an outer-layer test — a gap further in isn't credited to the outer layer |
 | `de.fourteen.gates.suppressionregister` | `suppressionRegister {}` | `suppressionRegister` | Every test/mutation suppression in code has a matching, dated entry in a register, and vice versa |
-| `de.fourteen.gates.featureslicing` | `featureSlicing {}` | `sliceStructure` | A feature's slice tree (see the `feature-slicing` skill) is numbered contiguously, and each slice's status agrees with its actual folder structure |
+| `de.fourteen.gates.featureslicing` | `featureSlicing {}` | `sliceStructure` | A feature's slice tree (see the `feature-slicing` skill) is numbered contiguously, each slice's status agrees with its actual folder structure, and each states a non-empty user-outcome statement |
 | | | `sliceCoverage` | Every leaf slice (no children of its own) is claimed by an annotated test method that actually passed — `requirementsCoverage`'s guarantee, pushed down to slice granularity |
 | `de.fourteen.gates.githooks` | — | `installGitHooks` | (not a gate — see below) |
 
@@ -224,6 +224,9 @@ featureSlicing {
     // requirementsCoverage -- a leaf slice's ID is claimed the exact same way a requirement's is
     // statusSectionName/statusLabel default to "Status"; allowedStatuses defaults to
     // ["needs splitting", "ready for implementation"]
+    // userOutcomeSectionName defaults to "User Outcome" -- presence/non-emptiness checked only
+    // acceptanceCriteriaSectionName defaults to "Acceptance Criteria";
+    // unsplittabilityReviewThreshold defaults to 12 (a notice, not a failure, past this count)
 }
 ```
 
@@ -353,6 +356,29 @@ section to state exactly one of `allowedStatuses` — `needsSplittingStatus`
 ("needs splitting" by default) only where a child directory actually exists,
 any other status (e.g. "ready for implementation") only where none does.
 
+It also requires a non-empty `userOutcomeSectionName` section ("User
+Outcome" by default) on every slice — a one-line statement of what a user
+(or another system) can do once that slice is implemented that they
+couldn't before:
+
+```
+## User Outcome
+
+A player can enter a room code and join the room.
+```
+
+Only the section's *presence* is checked, never its content — whether the
+statement actually holds up (and so whether the slice is really vertical)
+stays a human/skill judgment call; see the `feature-slicing` skill for why
+this statement is the intended proxy for that judgment.
+
+Separately, `sliceStructure` counts each slice's numbered `Acceptance
+Criteria` lines (same convention `featureDocs` uses) and, past
+`unsplittabilityReviewThreshold` (12 by default), adds a *notice* to its
+report rather than failing — a slice with that many criteria isn't
+necessarily still splittable, but it's worth a second look, and neither
+this gate nor any other in this repo can check unsplittability directly.
+
 `sliceCoverage` then requires every *leaf* slice (one with no children of
 its own — `4.2.1.1`, `4.2.1.2` and `4.2.2` above, not `4.2.1`) to be claimed
 by a passed test annotated with its own ID, the same marker annotation
@@ -457,16 +483,28 @@ feature:
      first slice has been carried all the way through — split, implemented
      (step 3) and accepted (step 4) — before the next sibling is even looked
      at.
+   - Every slice, leaf or not, states a **User Outcome**: a one-line
+     statement of what a user (or another system) can now do that they
+     couldn't before. Writing it is the skill's proxy for judging
+     verticality — a cut where no honest, specific statement can be written
+     probably isn't vertical.
    - **Open point:** how "vertical" gets checked deterministically isn't
-     decided yet; for now it's the skill's (or a human's) judgment call.
+     fully decided yet. `sliceStructure` checks that the `User Outcome`
+     section exists and isn't empty, but never whether its *content* holds
+     up — a hand-waved or generic statement passes the same as a specific
+     one. Whether the cut actually is vertical stays the skill's (or a
+     human's) judgment call.
    - **Open point:** how "unsplittable" gets checked deterministically isn't
      decided either. `sliceStructure` verifies that a slice's `Status`
      matches what's on disk (no children where "ready", children where
      "needs splitting"), but that only checks the status *label* is
      consistent — it never verifies that a slice marked "ready" actually
-     *is* unsplittable. A slice far too large to implement in one sitting,
-     mislabeled "ready" by the skill or by hand, passes the gate exactly
-     the same as a genuinely minimal one.
+     *is* unsplittable. It does flag slices past a configurable acceptance-
+     criteria count as worth a second look (a notice, not a failure), but
+     that's a heuristic prompt, not proof: a slice far too large to
+     implement in one sitting, mislabeled "ready" and just under the
+     threshold, still passes the gate exactly the same as a genuinely
+     minimal one.
 
    The `sliceStructure` and `sliceCoverage` gates check what *can* already
    be checked deterministically without solving either open point above:

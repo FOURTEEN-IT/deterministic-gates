@@ -38,9 +38,15 @@ docs/features/
 A slice's own ID is its path from the feature (`4.2.1`, `4.2.1.2`, ...). A
 slice doc uses the same headings as a feature doc (`Motivation`,
 `Affected Requirements`, `Acceptance Criteria`, `Scenarios`, `Criticality`,
-`Implemented In`, `Open Questions`), scoped down to just that slice, plus one
-more field: **Status**, either `needs splitting` or `ready for
-implementation`.
+`Implemented In`, `Open Questions`), scoped down to just that slice, plus two
+more fields:
+
+- **Status**, either `needs splitting` or `ready for implementation`.
+- **User Outcome**, a one-line statement of what a user (or another system)
+  can do once this slice is implemented that they couldn't before —
+  required on *every* slice, whether it's a leaf or gets split further. If
+  you can't write this statement so it actually makes sense, that's the
+  signal the cut you're looking at isn't vertical: go back to step 2.
 
 ## Steps
 
@@ -63,10 +69,18 @@ slice's own `1`, and so on, until you reach a slice with no children.
    `ready for implementation` and stop — this is a leaf, and it hands off to
    the TDD-implementation skill next.
 
+   Write this slice's `User Outcome` statement now, before deciding whether
+   it needs splitting further. If you find yourself unable to state, in one
+   sentence, what a user can now do — without hedging, without describing an
+   internal mechanism instead of an observable outcome — that's evidence the
+   cut isn't vertical yet, whatever level you're at.
+
    **Open point:** neither "vertical" nor "unsplittable" (small enough that
    no further vertical cut is worth making) is checked deterministically
-   anywhere in this repo yet. Both are this skill's (or a human's) judgment
-   call — see "Relationship to the companion gates" below.
+   anywhere in this repo yet. The `User Outcome` statement's *presence* is
+   checked by `sliceStructure`; whether its *content* actually holds up is
+   still this skill's (or a human's) judgment call — see "Relationship to
+   the companion gates" below.
 
 3. **If a vertical cut is still possible, cut it.** Split the current
    slice's `Acceptance Criteria`/`Scenarios` into the smallest number of
@@ -97,20 +111,42 @@ siblings eagerly is just re-doing feature decomposition, one level lower.
 
 The `de.fourteen.gates.featureslicing` Gradle plugin's `sliceStructure` and
 `sliceCoverage` gates (see the deterministic-gates README) catch what
-doesn't need judgment: the folder/numbering scheme staying consistent, a
-slice's `Status` matching what's actually on disk (no `ready for
-implementation` slice with children underneath it, no `needs splitting`
-slice without any), and `requirementsCoverage` extended down to leaf-slice
-IDs so a leaf can't stay silently unimplemented once its top-level
-requirement shows covered.
+doesn't need judgment:
 
-`sliceStructure`'s status check is a consistency check, not a correctness
-one: it confirms the `Status` *label* agrees with whether children exist on
-disk, never whether "ready for implementation" was the right call. Two
-things stay open, checked by neither gate: whether a given cut is actually
-*vertical*, and whether a slice marked "ready" is actually *unsplittable*
-(small enough that no further vertical cut would be worth making). A slice
-far too large to implement in one sitting, mislabeled "ready" by this skill
-or by hand, passes `sliceStructure` exactly the same as a genuinely minimal
-one — both stay this skill's (or a human's) judgment call until someone
-works out how to check them deterministically.
+- the folder/numbering scheme staying consistent;
+- a slice's `Status` matching what's actually on disk (no `ready for
+  implementation` slice with children underneath it, no `needs splitting`
+  slice without any);
+- a slice's `User Outcome` section existing and being non-empty;
+- `requirementsCoverage` extended down to leaf-slice IDs so a leaf can't
+  stay silently unimplemented once its top-level requirement shows covered.
+
+All four are structural or presence checks, not correctness ones — none of
+them read what a section actually *says*. `sliceStructure` confirms the
+`Status` *label* agrees with whether children exist on disk, never whether
+"ready for implementation" was the right call; it confirms a `User Outcome`
+statement exists, never whether it actually describes an observable,
+end-to-end outcome (i.e. whether the cut is really *vertical*) rather than
+empty hedging.
+
+Two things stay genuinely open, checked by neither gate:
+
+- **Verticality.** Writing the `User Outcome` statement is this skill's
+  attempt at a deterministic-*enough* proxy — a cut where no honest,
+  specific statement can be written is almost certainly not vertical — but
+  `sliceStructure` only checks the statement exists, not that it holds up.
+  Whether it actually does stays this skill's (or a reviewer's) judgment
+  call.
+- **Unsplittability.** `sliceStructure` also counts each slice's numbered
+  `Acceptance Criteria` lines and, past `unsplittabilityReviewThreshold`
+  (12 by default), adds a *notice* to its report — not a failure, since
+  "too many criteria" doesn't prove a slice is actually splittable further,
+  only that it's worth a second look. A slice under the threshold passes
+  either way; nothing here proves a slice really is as small as it could
+  be.
+
+A slice far too large to implement in one sitting, mislabeled "ready" with
+a hand-waved `User Outcome` and just under the criteria threshold, still
+passes `sliceStructure` exactly the same as a genuinely minimal one — both
+open points stay judgment calls until someone works out how to check them
+more directly.

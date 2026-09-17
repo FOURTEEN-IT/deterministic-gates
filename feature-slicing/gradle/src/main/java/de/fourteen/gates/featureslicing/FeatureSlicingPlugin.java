@@ -38,6 +38,9 @@ public class FeatureSlicingPlugin implements Plugin<Project> {
                     task.getStatusLabel().set(extension.getStatusLabel());
                     task.getNeedsSplittingStatus().set(extension.getNeedsSplittingStatus());
                     task.getAllowedStatuses().set(extension.getAllowedStatuses());
+                    task.getUserOutcomeSectionName().set(extension.getUserOutcomeSectionName());
+                    task.getAcceptanceCriteriaSectionName().set(extension.getAcceptanceCriteriaSectionName());
+                    task.getUnsplittabilityReviewThreshold().set(extension.getUnsplittabilityReviewThreshold());
                     task.getReportFile().convention(Reports.conventionFile(project, "slice-structure"));
                 });
         sliceStructure.configure(t -> t.onlyIf(unused -> extension.getFeaturesDir().isPresent()));
@@ -68,6 +71,9 @@ public class FeatureSlicingPlugin implements Plugin<Project> {
         extension.getStatusLabel().convention("Status");
         extension.getNeedsSplittingStatus().convention("needs splitting");
         extension.getAllowedStatuses().convention(List.of("needs splitting", "ready for implementation"));
+        extension.getUserOutcomeSectionName().convention("User Outcome");
+        extension.getAcceptanceCriteriaSectionName().convention("Acceptance Criteria");
+        extension.getUnsplittabilityReviewThreshold().convention(12);
         extension.getRequirementAnnotationFqn().convention("de.fourteen.gates.annotations.Requirement");
 
         project.getPlugins().withType(JavaPlugin.class, javaPlugin -> {

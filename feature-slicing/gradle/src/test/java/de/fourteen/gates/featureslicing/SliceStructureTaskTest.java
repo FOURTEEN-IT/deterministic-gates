@@ -10,6 +10,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,9 +42,19 @@ class SliceStructureTaskTest {
     }
 
     private void writeSlice(String relativePath, String status) throws IOException {
+        writeSlice(relativePath, status, "A player can now enter a room code.", 1);
+    }
+
+    private void writeSlice(String relativePath, String status, String userOutcome, int acceptanceCriteria)
+            throws IOException {
         Path doc = featuresDir.resolve(relativePath);
         Files.createDirectories(doc.getParent());
-        Files.writeString(doc, "## Status\n\n**Status:** " + status + "\n");
+        StringBuilder criteria = new StringBuilder();
+        IntStream.rangeClosed(1, acceptanceCriteria)
+                .forEach(i -> criteria.append(i).append(". Criterion number ").append(i).append(".\n"));
+        Files.writeString(doc, "## Status\n\n**Status:** " + status + "\n\n"
+                + "## User Outcome\n\n" + userOutcome + "\n\n"
+                + "## Acceptance Criteria\n\n" + criteria + "\n");
     }
 
     @Test
@@ -109,5 +120,35 @@ class SliceStructureTaskTest {
 
         GradleException exception = assertThrows(GradleException.class, () -> task().check());
         assertTrue(exception.getMessage().contains("4.2.1"));
+    }
+
+    @Test
+    void failsWhenTheUserOutcomeSectionIsMissing() throws IOException {
+        Path doc = featuresDir.resolve("4.2/1.md");
+        Files.createDirectories(doc.getParent());
+        Files.writeString(doc, "## Status\n\n**Status:** ready for implementation\n");
+
+        GradleException exception = assertThrows(GradleException.class, () -> task().check());
+        assertTrue(exception.getMessage().contains("4.2.1"));
+    }
+
+    @Test
+    void failsWhenTheUserOutcomeSectionIsEmpty() throws IOException {
+        writeSlice("4.2/1.md", "ready for implementation", "", 1);
+
+        GradleException exception = assertThrows(GradleException.class, () -> task().check());
+        assertTrue(exception.getMessage().contains("4.2.1"));
+    }
+
+    @Test
+    void passesButNoticesWhenMoreThanTwelveAcceptanceCriteria() throws IOException {
+        writeSlice("4.2/1.md", "ready for implementation", "A player can now enter a room code.", 13);
+
+        assertDoesNotThrow(() -> task().check());
+
+        String report = Files.readString(task().getReportFile().get().getAsFile().toPath());
+        assertTrue(report.contains("4.2.1"));
+        assertTrue(report.contains("13 acceptance criteria"));
+        assertTrue(report.contains("re-examine whether this slice is really unsplittable"));
     }
 }

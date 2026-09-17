@@ -35,10 +35,20 @@ import java.util.regex.Pattern;
  *   <li>has that status agree with what's actually on disk: {@link #getNeedsSplittingStatus()}
  *       requires at least one child slice underneath it, any other status requires none -- a
  *       slice can't claim to be ready for implementation while still having open children, or
- *       claim to need further splitting while nothing has been split yet.</li>
+ *       claim to need further splitting while nothing has been split yet; and</li>
+ *   <li>has a non-empty {@link #getUserOutcomeSectionName()} section -- a one-line statement of
+ *       what a user (or another system) can do once this slice is implemented that they couldn't
+ *       before. Only its <em>presence</em> is checked here: whether the statement actually makes
+ *       sense, and so whether the slice really is vertical, stays a judgment call this gate
+ *       doesn't make.</li>
  * </ul>
- * The top-level feature doc itself carries no status (that's {@code featureDocs}' job); only the
- * slices underneath it do.
+ * The top-level feature doc itself carries no status or user-outcome statement (that's {@code
+ * featureDocs}' job); only the slices underneath it do.
+ *
+ * <p>A slice past {@link #getUnsplittabilityReviewThreshold()} acceptance criteria doesn't fail
+ * this gate -- unsplittability isn't checked here either -- but is called out in the report as
+ * worth re-examining, the same way a large diff invites a second look without being wrong by
+ * itself.
  */
 public abstract class SliceStructureTask extends DefaultTask {
 
@@ -58,8 +68,19 @@ public abstract class SliceStructureTask extends DefaultTask {
     @Input
     public abstract ListProperty<String> getAllowedStatuses();
 
+    @Input
+    public abstract Property<String> getUserOutcomeSectionName();
+
+    @Input
+    public abstract Property<String> getAcceptanceCriteriaSectionName();
+
+    @Input
+    public abstract Property<Integer> getUnsplittabilityReviewThreshold();
+
     @OutputFile
     public abstract RegularFileProperty getReportFile();
+
+    private static final Pattern NUMBERED_LINE = Pattern.compile("^[0-9]+\\.\\s");
 
     @TaskAction
     public void check() {
@@ -69,6 +90,7 @@ public abstract class SliceStructureTask extends DefaultTask {
                 + String.join("|", allowedStatuses.stream().map(Pattern::quote).toList()) + ")\\s*$");
 
         Map<String, List<String>> problems = new LinkedHashMap<>();
+        Map<String, String> notices = new LinkedHashMap<>();
         int sliceCount = 0;
         for (SliceTree.Node root : SliceTree.forest(getFeaturesDir().get().getAsFile())) {
             if (!root.issues().isEmpty()) {
@@ -76,7 +98,7 @@ public abstract class SliceStructureTask extends DefaultTask {
             }
             for (SliceTree.Node child : root.children()) {
                 sliceCount += 1 + countDescendants(child);
-                checkNode(child, statusLine, allowedStatuses, needsSplitting, problems);
+                checkNode(child, statusLine, allowedStatuses, needsSplitting, problems, notices);
             }
         }
 
@@ -91,6 +113,11 @@ public abstract class SliceStructureTask extends DefaultTask {
                 issues.forEach(issue -> report.append("      ").append(issue).append("\n"));
             });
         }
+        if (!notices.isEmpty()) {
+            report.append("Notices (").append(notices.size()).append(", not a failure -- ")
+                    .append("re-examine whether these slices are really unsplittable):\n");
+            notices.forEach((id, notice) -> report.append("  - ").append(id).append(": ").append(notice).append("\n"));
+        }
         Reports.write(getReportFile().get().getAsFile(), report.toString());
 
         if (!problems.isEmpty()) {
@@ -99,7 +126,7 @@ public abstract class SliceStructureTask extends DefaultTask {
     }
 
     private void checkNode(SliceTree.Node node, Pattern statusLine, List<String> allowedStatuses,
-            String needsSplitting, Map<String, List<String>> problems) {
+            String needsSplitting, Map<String, List<String>> problems, Map<String, String> notices) {
         List<String> issues = new ArrayList<>(node.issues());
         List<String> lines = readLines(node.doc());
 
@@ -126,11 +153,27 @@ public abstract class SliceStructureTask extends DefaultTask {
             }
         }
 
+        boolean userOutcomeStated = section(lines, getUserOutcomeSectionName().get()).stream()
+                .anyMatch(l -> !l.isBlank());
+        if (!userOutcomeStated) {
+            issues.add("section \"" + getUserOutcomeSectionName().get() + "\" is missing or empty -- "
+                    + "state what a user can now do once this slice is implemented");
+        }
+
+        long criteriaCount = section(lines, getAcceptanceCriteriaSectionName().get()).stream()
+                .filter(l -> NUMBERED_LINE.matcher(l).find())
+                .count();
+        int threshold = getUnsplittabilityReviewThreshold().get();
+        if (criteriaCount > threshold) {
+            notices.put(node.id(), criteriaCount + " acceptance criteria (more than " + threshold
+                    + ") -- re-examine whether this slice is really unsplittable");
+        }
+
         if (!issues.isEmpty()) {
             problems.put(node.id(), issues);
         }
         for (SliceTree.Node child : node.children()) {
-            checkNode(child, statusLine, allowedStatuses, needsSplitting, problems);
+            checkNode(child, statusLine, allowedStatuses, needsSplitting, problems, notices);
         }
     }
 

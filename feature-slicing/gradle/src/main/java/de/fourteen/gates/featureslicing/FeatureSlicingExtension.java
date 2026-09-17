@@ -26,6 +26,17 @@ public abstract class FeatureSlicingExtension {
     public abstract Property<String> getNeedsSplittingStatus();
     public abstract ListProperty<String> getAllowedStatuses();
 
+    // sliceStructure -- the vertical-slicing skill's "what can a user now do" statement. Its
+    // *presence* is a structural fact this gate can check; whether the statement actually makes
+    // sense (i.e. whether the slice really is vertical) stays a judgment call no gate makes here.
+    public abstract Property<String> getUserOutcomeSectionName();
+
+    // sliceStructure -- not a hard limit like featureDocs' maxAcceptanceCriteria: a slice past
+    // this count still passes, but the report flags it as worth re-examining for unsplittability,
+    // since neither gate can check unsplittability itself.
+    public abstract Property<String> getAcceptanceCriteriaSectionName();
+    public abstract Property<Integer> getUnsplittabilityReviewThreshold();
+
     // sliceCoverage -- reuses the same marker annotation requirementsCoverage does by default,
     // since a leaf slice's ID is claimed the exact same way a requirement's ID is.
     public abstract Property<String> getRequirementAnnotationFqn();
