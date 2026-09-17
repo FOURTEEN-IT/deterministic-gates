@@ -31,6 +31,7 @@ adr/                     claude/                (skill)
 idea-clarification/      claude/                (skill)
 open-decisions/          claude/                (skill + hook)
 staged-verification/     claude/                (skill)
+tdd-implementation/      claude/                (skill)
 commit-discipline/       gradle/  claude/       (git hook install task + skill + hook)
 structure-doc/           gradle/
 requirements/            gradle/  annotations/  (three gates + @Requirement)
@@ -74,6 +75,7 @@ observe.
 | `staged-verification/` | — | `staged-verification` skill |
 | `feature-slicing/` | `sliceStructure`, `sliceCoverage` gates | `feature-slicing` skill |
 | `idea-clarification/` | — | `idea-clarification` skill |
+| `tdd-implementation/` | — | `tdd-implementation` skill |
 
 `requirements/` and `commit-discipline/` are the only directories with more
 than one thing inside, and each time for a concrete, checked reason, not
@@ -433,8 +435,9 @@ changed. That judgment call is what the `release-impact` skill is for.
 
 Point Claude Code at one of `adr/claude/`, `open-decisions/claude/`,
 `staged-verification/claude/`, `commit-discipline/claude/`,
-`feature-slicing/claude/` or `idea-clarification/claude/` as a plugin
-directory (locally, or once published, via a marketplace) to get that
+`feature-slicing/claude/`, `idea-clarification/claude/` or
+`tdd-implementation/claude/` as a plugin directory (locally, or once
+published, via a marketplace) to get that
 directory's skill — install as many or as few as you want.
 
 To use a hook, copy its script into your project and wire it in
@@ -534,13 +537,20 @@ feature:
    See [Gradle gates](#gradle-gates) for the exact convention both check
    against.
 
-3. **TDD implementation** (planned) — a skill drives one slice at a time
-   through red/green/refactor: write the failing test, make it pass with the
-   smallest change that does so, then refactor. `staged-verification` is
-   only the supporting check-order for this loop (compile, then
-   unit/domain tests, then architecture tests, then the full check, stopping
-   at the first red stage) — it doesn't drive the test-first cycle itself,
-   so this is a separate, not-yet-built skill.
+3. **TDD implementation** — the `tdd-implementation` skill finds the first
+   open leaf slice (lowest-numbered, `ready for implementation`, not yet
+   covered per `sliceCoverage`) and drives it through red/green/refactor,
+   one `Acceptance Criteria` line at a time — not all tests up front, not
+   the whole slice in one pass. `staged-verification` is the supporting
+   check-order this loop runs after every green and refactor step (compile,
+   then unit/domain tests, then architecture tests, then the full check,
+   stopping at the first red stage); it doesn't drive the test-first cycle
+   itself, `tdd-implementation` does. A slice counts as done only once
+   every criterion has a passing, `@Requirement`-annotated test *and*
+   `sliceStructure`/`sliceCoverage` actually pass — not just once tests are
+   locally green. The skill then updates the slice doc's `Implemented In`
+   field and stops; handing off to the next sibling slice or to acceptance
+   is left to whoever invoked it.
 
 4. **Acceptance against the original description** (planned) — once a slice
    is implemented, it's checked back against what was actually asked for,
@@ -556,8 +566,8 @@ feature:
    piggybacks on a signal that's already there rather than needing a new
    trigger. Not yet covered by any gate or skill here.
 
-Steps 3 and 4 are not built yet — they're named here so the gap is visible,
-not to claim tooling that doesn't exist. Steps 1 and 2 exist today: their
+Step 4 is not built yet — it's named here so the gap is visible, not to
+claim tooling that doesn't exist. Steps 1 through 3 exist today: their
 skills, and step 2's two gates.
 
 ## Status
@@ -574,13 +584,14 @@ since `@Requirement`/`@RegisteredSuppression` end up scattered across a
 consuming project's test code, more expensive to change later than a Gradle
 property name.
 
-Two more Claude Code skills are now included: `idea-clarification`, which
+Three more Claude Code skills are now included: `idea-clarification`, which
 interviews a raw feature idea and writes the resulting top-level feature
-doc, and `feature-slicing`, which turns that doc into vertically-sliced,
+doc; `feature-slicing`, which turns that doc into vertically-sliced,
 independently shippable pieces of work, along with its companion
-`sliceStructure`/`sliceCoverage` Gradle gates. See
-[Development process](#development-process) for where both fit; the
-TDD-implementation and acceptance-against-description steps after them are
+`sliceStructure`/`sliceCoverage` Gradle gates; and `tdd-implementation`,
+which drives one leaf slice through red/green/refactor, one acceptance
+criterion at a time. See [Development process](#development-process) for
+where all three fit; the acceptance-against-description step after them is
 still planned.
 
 ## License
