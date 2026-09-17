@@ -1,0 +1,14 @@
+{
+  "name": "deterministic-gates",
+  "description": "Companion Claude Code skills and hooks for the deterministic-gates Gradle plugin: judgment-driven skills for ADRs, open decisions, staged verification and release impact, plus two hooks enforcing a single-branch workflow and surfacing open decisions at session start.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/adr",
+    "./skills/open-decisions",
+    "./skills/staged-verification",
+    "./skills/release-impact"
+  ]
+}
