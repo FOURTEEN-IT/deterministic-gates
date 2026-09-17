@@ -137,6 +137,14 @@ public class GatesPlugin implements Plugin<Project> {
         extension.getAllowedCriticalityLevels().convention(List.of("LOW", "MEDIUM", "HIGH"));
         extension.getAllowedReferenceTypes().convention(List.of("existing", "changed", "new", "reverted"));
 
+        // Shipped by this plugin's `annotations` module -- add it as a testImplementation
+        // dependency to use these gates without configuring anything here. Both properties stay
+        // overridable for a project that already has an equivalent annotation of its own.
+        extension.getRequirementAnnotationFqn().convention("de.fourteen.gates.annotations.Requirement");
+        extension.getSuppressionAnnotationFqns().convention(List.of(
+                "de.fourteen.gates.annotations.RegisteredSuppression",
+                "org.junit.jupiter.api.Disabled"));
+
         project.getPlugins().withType(JavaPlugin.class, javaPlugin -> {
             SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
             SourceSet testSourceSet = sourceSets.getByName("test");

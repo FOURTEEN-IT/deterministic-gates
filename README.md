@@ -42,6 +42,26 @@ fully qualified name.
 Also included: `installGitHooks`, a one-time opt-in task that copies a
 Conventional-Commits-checking `commit-msg` git hook into `.git/hooks`.
 
+### Annotations library (`annotations/`)
+
+`requirementsCoverage` and `suppressionRegister` need a real marker
+annotation on the JVM classpath — not just a string naming one — so this
+repo ships one, as its own small, dependency-free artifact
+(`de.fourteen.gates:annotations`) separate from the Gradle plugin (a
+project's *test code* needs this on its compile/test classpath; the Gradle
+plugin itself never does).
+
+| Annotation | Read by |
+|------------|---------|
+| `@Requirement("4.2")` | `requirementsCoverage` — put on a test method |
+| `@RegisteredSuppression` | `suppressionRegister` — put on a suppressed class or method |
+
+Both gates default to these two (`suppressionRegister` also checks
+`org.junit.jupiter.api.Disabled` by default, no dependency needed for that
+one). Add the dependency and you're done — no `GatesExtension` configuration
+needed for either gate unless you'd rather use an annotation you already
+have.
+
 ### Claude Code plugin (`claude-plugin/`)
 
 | Skill | For |
@@ -77,12 +97,21 @@ plugins {
     id("de.fourteen.gates") version "<tag>" // see "Consuming this plugin" below
 }
 
+repositories {
+    mavenCentral()
+    maven("https://jitpack.io") // for the annotations dependency below, until it's on Central
+}
+
+dependencies {
+    testImplementation("de.fourteen.gates:annotations:<tag>")
+}
+
 gates {
     architectureDocFile.set(layout.projectDirectory.file("ARCHITECTURE.md"))
     domainModelDir.set(layout.projectDirectory.dir("src/main/java/com/example/domain"))
 
     requirementsFile.set(layout.projectDirectory.file("docs/requirements.md"))
-    requirementAnnotationFqn.set("com.example.testing.Requirement")
+    // requirementAnnotationFqn defaults to de.fourteen.gates.annotations.Requirement
     // coverageCategory defaults to "backend"
 
     domainPackagePrefix.set("com/example/domain")
@@ -92,7 +121,7 @@ gates {
     featuresDir.set(layout.projectDirectory.dir("docs/features"))
 
     exceptionsRegisterFile.set(layout.projectDirectory.file("docs/test-exceptions.md"))
-    suppressionAnnotationFqns.set(listOf("org.junit.jupiter.api.Disabled"))
+    // suppressionAnnotationFqns defaults to [RegisteredSuppression, org.junit.jupiter.api.Disabled]
 }
 ```
 
@@ -118,9 +147,12 @@ read the same requirements register: a markdown table anywhere in
 | 4.2 | Players join a room | backend  |
 ```
 
-`requirementsCoverage` needs a marker annotation on the test side:
+`requirementsCoverage` needs the marker annotation from `annotations/` (or
+your own, see `requirementAnnotationFqn`) on the test side:
 
 ```java
+import de.fourteen.gates.annotations.Requirement;
+
 @Test
 @Requirement("4.2")
 void aPlayerCanJoinARoom() { ... }
@@ -163,14 +195,24 @@ test("a player can join a room", () => {
 (configurable); unless it's `new`, the ID must already be in the
 requirements register.
 
-**`suppressionRegister`** expects a markdown table (again matched by shape,
-any heading text) whose first column names a suppressed class or
-`Class.method`:
+**`suppressionRegister`** looks for `@RegisteredSuppression` from
+`annotations/` (plus JUnit 5's `@Disabled`, or your own via
+`suppressionAnnotationFqns`) on a class or method:
+
+```java
+import de.fourteen.gates.annotations.RegisteredSuppression;
+
+@RegisteredSuppression
+void aKnownFlakyTest() { ... }
+```
+
+and expects a markdown table (again matched by shape, any heading text)
+whose first column names the suppressed class or `Class.method`:
 
 ```
-| Suppressed        | Reason                          | Date       |
-|--------------------|---------------------------------|------------|
-| PaymentGateway.retry | flaky third-party API in CI    | 2026-03-01 |
+| Suppressed            | Reason                       | Date       |
+|------------------------|-------------------------------|------------|
+| PaymentGateway.retry   | flaky third-party API in CI  | 2026-03-01 |
 ```
 
 ### Consuming this plugin
@@ -185,6 +227,10 @@ This repository doesn't publish to the Gradle Plugin Portal (yet — see
 3. **`includeBuild`**: for working on the plugin and a consumer together —
    point a composite build at a local checkout of this repo's
    `gradle-plugin/` directory.
+
+The same applies to `de.fourteen.gates:annotations` (the `annotations/`
+directory) — it's a separate, ordinary Maven-coordinate dependency, resolved
+the same three ways, not bundled inside the plugin jar.
 
 ### Installing the commit-msg hook
 
@@ -214,7 +260,10 @@ This is a first extraction from a single origin project, done in one pass.
 Expect the extension's property names and the exact file conventions to
 still move a little as a second and third consuming project exercise them.
 Semantic versioning starts in earnest once there's evidence beyond the
-original project that the shape is right.
+original project that the shape is right — the `annotations` module
+especially, since `@Requirement`/`@RegisteredSuppression` end up scattered
+across a consuming project's test code, more expensive to change later than
+a Gradle property name.
 
 A fifth Claude Code skill — turning an idea into vertically-sliced,
 independently shippable pieces of work — is planned but deliberately not

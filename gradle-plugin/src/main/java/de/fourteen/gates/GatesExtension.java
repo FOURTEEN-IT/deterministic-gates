@@ -26,7 +26,9 @@ public abstract class GatesExtension {
     public abstract DirectoryProperty getDomainModelDir();
     public abstract ListProperty<String> getStructureDocAllowedMissingNames();
 
-    // requirementsCoverage
+    // requirementsCoverage -- the marker annotation is shipped by this plugin's `annotations`
+    // module (de.fourteen.gates.annotations.Requirement) and used by default; override only if
+    // a project already has its own equivalent and doesn't want the extra dependency.
     public abstract Property<String> getRequirementAnnotationFqn();
     public abstract Property<String> getCoverageCategory();
     public abstract ConfigurableFileCollection getTestClassesDirs();
@@ -59,7 +61,11 @@ public abstract class GatesExtension {
     public abstract ListProperty<String> getAllowedCriticalityLevels();
     public abstract ListProperty<String> getAllowedReferenceTypes();
 
-    // suppressionRegister
+    // suppressionRegister -- defaults to this plugin's own
+    // de.fourteen.gates.annotations.RegisteredSuppression plus JUnit 5's @Disabled (both
+    // already on most JVM test classpaths, the latter without any extra dependency at all);
+    // add to the list rather than replacing it if a project has further suppression annotations
+    // of its own.
     public abstract RegularFileProperty getExceptionsRegisterFile();
     public abstract ListProperty<String> getSuppressionAnnotationFqns();
 }
