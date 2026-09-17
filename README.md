@@ -383,7 +383,45 @@ feature:
 2. **Vertical slicing** (planned) — the clarified idea is cut into small,
    atomic, independently shippable vertical slices — each one a complete
    path through the system, not a horizontal layer. This is the fifth skill
-   mentioned under [Status](#status); its design isn't finalized yet.
+   mentioned under [Status](#status); the rough shape so far:
+
+   - A top-level feature is one entry in the existing requirements register
+     (e.g. requirement `4.2`), documented in full up front by the
+     idea-clarification skill above, before any slicing starts.
+   - The slicing skill takes that feature and cuts it, one level at a time,
+     into slices — each slice gets its own doc, one folder level deeper and
+     numbered from its parent (`4.2/1/`, then `4.2/1/2/`, ...), the same
+     nesting repeating at every level a slice needs splitting further.
+   - Only the *first* slice at any level is ever examined: is it vertical,
+     and is it still worth splitting further? If a candidate cut isn't
+     vertical, that level isn't done — cut again. If it is vertical but
+     still splittable, it's split again, one level deeper. This repeats
+     until a vertical slice is reached that can't be split further —
+     vertical-and-unsplittable is the stopping condition, not a size
+     threshold. Sibling slices at every level are left untouched until the
+     first slice has been carried all the way through — split, implemented
+     (step 3) and accepted (step 4) — before the next sibling is even looked
+     at.
+   - How "vertical" gets checked deterministically isn't decided yet; for
+     now it's the skill's (or a human's) judgment call.
+
+   A companion Gradle gate is planned alongside this skill, checking what
+   *can* already be checked deterministically without solving the
+   vertical-check problem first:
+
+   - the slice folder/numbering scheme is consistent (no gaps, each slice's
+     number matches its position under its parent);
+   - each slice doc's status (e.g. "needs further slicing" vs. "ready for
+     implementation") matches what the folder structure actually shows —
+     a "ready" slice with child slices already underneath it, or a "needs
+     splitting" slice with none, is a contradiction the gate rejects;
+   - `requirementsCoverage`'s check extended down to slice granularity: a
+     leaf slice (no children, "ready for implementation") needs a passing
+     test that references *that slice's* ID, not just the top-level
+     requirement's — the same no-gap guarantee `requirementsCoverage`
+     already gives at the requirement level, pushed one level further down
+     so a slice can't quietly stay unimplemented once its parent requirement
+     shows covered.
 
 3. **TDD implementation** (planned) — a skill drives one slice at a time
    through red/green/refactor: write the failing test, make it pass with the
