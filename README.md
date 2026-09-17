@@ -385,11 +385,13 @@ feature:
    path through the system, not a horizontal layer. This is the fifth skill
    mentioned under [Status](#status); its design isn't finalized yet.
 
-3. **TDD implementation** — each slice is implemented test-first.
-   `staged-verification` supports this loop directly: compile, then
+3. **TDD implementation** (planned) — a skill drives one slice at a time
+   through red/green/refactor: write the failing test, make it pass with the
+   smallest change that does so, then refactor. `staged-verification` is
+   only the supporting check-order for this loop (compile, then
    unit/domain tests, then architecture tests, then the full check, stopping
-   at the first red stage instead of waiting on a full run to fail somewhere
-   in the middle.
+   at the first red stage) — it doesn't drive the test-first cycle itself,
+   so this is a separate, not-yet-built skill.
 
 4. **Acceptance against the original description** (planned) — once a slice
    is implemented, it's checked back against what was actually asked for,
@@ -398,10 +400,14 @@ feature:
    narrow, widen or reinterpret it along the way. `featureDocs` is a
    different, narrower check — it only enforces that a feature doc follows
    the required structure and references real requirement IDs, not that the
-   implementation matches the doc. This step is judgment, not yet covered by
-   any gate or skill here.
+   implementation matches the doc. This step triggers automatically whenever
+   a `fix` or `feat` commit is made (the two Conventional-Commits types that
+   actually change behavior), the same commit `installGitHooks`'s
+   `commit-msg` hook already parses the type of — so the acceptance check
+   piggybacks on a signal that's already there rather than needing a new
+   trigger. Not yet covered by any gate or skill here.
 
-Steps 1, 2 and 4 are not built yet — they're named here so the gap is
+Steps 1, 2, 3 and 4 are not built yet — they're named here so the gap is
 visible, not to claim tooling that doesn't exist.
 
 ## Status
