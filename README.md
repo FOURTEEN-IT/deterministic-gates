@@ -18,17 +18,84 @@ This repository packages the gate half of that distinction so it doesn't
 have to be reinvented per project, and a few of the judgment-half skills
 that pair naturally with it.
 
+## Layout
+
+Organized by subject matter first, technology second — a directory is
+`requirements/` or `commit-discipline/`, not `gradle-plugin/` or
+`claude-plugin/`. Within a subject, its Gradle-side and Claude-side pieces
+(where both exist) sit next to each other under `gradle/`, `claude/` and
+`annotations/`:
+
+```
+adr/                     claude/                (skill)
+open-decisions/          claude/                (skill + hook)
+staged-verification/     claude/                (skill)
+commit-discipline/       gradle/  claude/       (git hook install task + skill + hook)
+structure-doc/           gradle/
+requirements/            gradle/  annotations/  (three gates + @Requirement)
+layer-disjointness/      gradle/
+suppression-register/    gradle/  annotations/  (gate + @RegisteredSuppression)
+```
+
+Two more top-level directories hold no subject-matter content of their own,
+only build definitions that assemble the above into publishable artifacts:
+
+- **`gradle-plugin/`** — `settings.gradle.kts`, `build.gradle.kts`, the
+  wrapper, and `src/main/java/.../internal/` (the parsing/reflection helpers
+  shared across gates — belongs to no single subject, so it lives with the
+  build that shares it). Its `sourceSets` pull each gate's actual Java
+  sources from the directories above.
+- **`annotations/`** — the same, for `de.fourteen.gates:annotations`; pulls
+  `Requirement.java` from `requirements/annotations/` and
+  `RegisteredSuppression.java` from `suppression-register/annotations/`.
+
+Why one Gradle module reaching across directories, rather than N independent
+builds matching the layout 1:1: applying `de.fourteen.gates.structuredoc`
+already doesn't pull in `suppressionRegister`'s task or extension (checked
+with a real, separate build in `PluginIdsFunctionalTest` — different plugin
+ids from the same jar stay fully independent at the point that matters, what
+a consumer's build sees). Splitting the build itself into five would only
+multiply wrapper/CI/version bookkeeping for a distinction consumers can't
+observe.
+
 ## What's inside
 
-### Gradle plugins (`gradle-plugin/`)
+| Directory | Gradle | Claude Code |
+|-----------|--------|-------------|
+| `structure-doc/` | `structureDoc` gate | — |
+| `requirements/` | `requirementsCoverage`, `taggedRequirementsCoverage`, `featureDocs` gates + `@Requirement` | — |
+| `layer-disjointness/` | `layerDisjointness` gate | — |
+| `suppression-register/` | `suppressionRegister` gate + `@RegisteredSuppression` | — |
+| `commit-discipline/` | `installGitHooks` (commit-msg format) | `release-impact` skill, `main-branch-rule.sh` hook |
+| `open-decisions/` | — | `open-decisions` skill, `session-start.sh` hook |
+| `adr/` | — | `adr` skill |
+| `staged-verification/` | — | `staged-verification` skill |
+
+`requirements/` and `commit-discipline/` are the only directories with more
+than one thing inside, and each time for a concrete, checked reason, not
+convenience:
+
+- `requirementsCoverage`, `taggedRequirementsCoverage` and `featureDocs`
+  read the same requirements register through the same parser — splitting
+  them further would mean duplicating that parser instead of sharing it.
+- `commit-discipline` groups everything about how a commit gets made and
+  what it triggers: format (`installGitHooks`'s git-native `commit-msg`
+  hook, works no matter what tool commits), branch/timing
+  (`main-branch-rule.sh`, only while Claude Code itself runs `git`) and
+  release consequence (`release-impact`, judgment about whether the type
+  matches the change). Three different technologies, one subject.
+
+Every other pairing was checked and found *not* load-bearing before being
+kept separate: `open-decisions` names `adr` as the recommended way to write
+one, worded so it degrades gracefully if `adr` isn't installed — the only
+cross-reference among the four skills, and cheap enough to not force a
+bundle over it. `staged-verification` and `adr` reference nothing else.
+
+## Gradle gates
 
 Six gates, five plugin ids, zero runtime dependencies beyond the JDK and the
-Gradle API. Five, not one and not six: `structureDoc`, `layerDisjointness`
-and `suppressionRegister` check three unrelated things and split cleanly;
-`requirementsCoverage`, `taggedRequirementsCoverage` and `featureDocs` stay
-together in one plugin because all three read the same requirements register
-through the same parser — splitting those three further would mean
-duplicating that parser instead of sharing it.
+Gradle API — every gate here parses plain text, JUnit/JaCoCo XML (the JDK's
+own `javax.xml.parsers`) or reflects over compiled classes.
 
 | Plugin id | Extension | Task(s) | Checks |
 |-----------|-----------|---------|--------|
@@ -63,11 +130,11 @@ needs `featuresDir`.
 task that copies a Conventional-Commits-checking `commit-msg` git hook into
 `.git/hooks` — not itself a gate, so it's never wired into `check`.
 
-### Annotations library (`annotations/`)
+### The `annotations` artifact
 
 `requirementsCoverage` and `suppressionRegister` need a real marker
 annotation on the JVM classpath — not just a string naming one — so this
-repo ships one, as its own small, dependency-free artifact
+repo ships two, as one small, dependency-free artifact
 (`de.fourteen.gates:annotations`) separate from the Gradle plugin (a
 project's *test code* needs this on its compile/test classpath; the Gradle
 plugin itself never does).
@@ -81,38 +148,6 @@ Both gates default to these two (`suppressionRegister` also checks
 `org.junit.jupiter.api.Disabled` by default, no dependency needed for that
 one). Add the dependency and you're done — no extension configuration needed
 for either gate unless you'd rather use an annotation you already have.
-
-### Claude Code plugins (`claude-plugin/`)
-
-Four independent plugins, one per skill — none of them share an
-implementation the way the requirements gates do (checked: no skill's own
-logic breaks without another; the only cross-references were a name-drop in
-prose, softened below to not assume the other is installed). Install just
-the one(s) you want.
-
-| Plugin dir | Skill | For |
-|------------|-------|-----|
-| `adr/` | `adr` | Recording a technical decision as an Architecture Decision Record |
-| `open-decisions/` | `open-decisions` | Carrying an answered open question through every place it needs to land |
-| `staged-verification/` | `staged-verification` | Running cheap, local checks before expensive, broad ones — stop at the first red |
-| `release-impact/` | `release-impact` | Making a commit's release/deploy consequence explicit before typing its Conventional Commits type |
-
-`open-decisions` mentions `adr` as the recommended way to record a purely
-technical decision, and falls back gracefully ("record it however this
-project normally does") if `adr` isn't installed — the only real link
-between any two of the four, and even that costs nothing to not have.
-
-Two hooks, kept as plain scripts rather than wrapped in their own plugins
-each — there's no forced-bundling problem to fix here: they're already two
-separate files, already documented as independently copyable.
-
-| Hook | Event | Does |
-|------|-------|------|
-| `main-branch-rule.sh` | `PreToolUse` (Bash) | Blocks creating a new branch/worktree; blocks a commit whose branch is behind its upstream |
-| `session-start.sh` | `SessionStart` | Surfaces working-tree state and any open decisions at the start of a session |
-
-A fifth skill, for turning an idea into vertically-sliced, independently
-buildable pieces, is planned but not yet written — see [Status](#status).
 
 ## Using the Gradle plugins
 
@@ -178,11 +213,11 @@ suppressionRegister {
 ```
 
 Every property not shown above has a sensible convention-based default (see
-each plugin's `*Extension` class for the full list); `requirements`'s
-test-classes, test-results and classpath inputs for `requirementsCoverage`
-default to the `test` source set if the `java` plugin is applied,
-additively — add more with `.from(...)` for extra test suites (integration,
-contract, etc.).
+each gate's `*Extension` class, under `<subject>/gradle/src/main/java/`, for
+the full list); `requirements`'s test-classes, test-results and classpath
+inputs for `requirementsCoverage` default to the `test` source set if the
+`java` plugin is applied, additively — add more with `.from(...)` for extra
+test suites (integration, contract, etc.).
 
 When you do add one, hand `testResultsDirs` the *task*, not the path it
 writes to — `.from(tasks.named<Test>("integrationTest"))` rather than
@@ -207,8 +242,8 @@ read the same requirements register: a markdown table anywhere in
 | 4.2 | Players join a room | backend  |
 ```
 
-`requirementsCoverage` needs the marker annotation from `annotations/` (or
-your own, see `requirementAnnotationFqn`) on the test side:
+`requirementsCoverage` needs the marker annotation (or your own, see
+`requirementAnnotationFqn`) on the test side:
 
 ```java
 import de.fourteen.gates.annotations.Requirement;
@@ -255,9 +290,9 @@ test("a player can join a room", () => {
 (configurable); unless it's `new`, the ID must already be in the
 requirements register.
 
-**`suppressionRegister`** looks for `@RegisteredSuppression` from
-`annotations/` (plus JUnit 5's `@Disabled`, or your own via
-`suppressionAnnotationFqns`) on a class or method:
+**`suppressionRegister`** looks for `@RegisteredSuppression` (plus JUnit 5's
+`@Disabled`, or your own via `suppressionAnnotationFqns`) on a class or
+method:
 
 ```java
 import de.fourteen.gates.annotations.RegisteredSuppression;
@@ -310,31 +345,42 @@ With `de.fourteen.gates.githooks` applied:
 Copies a Conventional-Commits-format checker into `.git/hooks/commit-msg`.
 It checks *format* only (does the subject line parse as `type(scope): ...`
 with an Angular-preset type) — not whether the type matches what actually
-changed. That judgment call is what the `release-impact` skill below is for.
+changed. That judgment call is what the `release-impact` skill is for.
 
 ## Using the Claude Code plugins
 
-Point Claude Code at one of `claude-plugin/adr/`,
-`claude-plugin/open-decisions/`, `claude-plugin/staged-verification/` or
-`claude-plugin/release-impact/` as a plugin directory (locally, or once
-published, via a marketplace) to get that one skill — install as many or as
-few as you want. To use the hooks, copy `claude-plugin/hooks/*.sh` into your
-project and wire them in `.claude/settings.json` — see
-`claude-plugin/settings.snippet.json` for the exact shape. Both hooks read
-their one configurable value from an environment variable
-(`GATES_MAIN_BRANCH`, `GATES_OPEN_DECISIONS_FILE`) with a sensible default,
-rather than from a config file.
+Point Claude Code at one of `adr/claude/`, `open-decisions/claude/`,
+`staged-verification/claude/` or `commit-discipline/claude/` as a plugin
+directory (locally, or once published, via a marketplace) to get that
+directory's skill — install as many or as few as you want.
+
+To use a hook, copy its script into your project and wire it in
+`.claude/settings.json`:
+
+| Hook | Lives at | Event | Does |
+|------|----------|-------|------|
+| `main-branch-rule.sh` | `commit-discipline/claude/hooks/` | `PreToolUse` (Bash) | Blocks creating a new branch/worktree; blocks a commit whose branch is behind its upstream |
+| `session-start.sh` | `open-decisions/claude/hooks/` | `SessionStart` | Surfaces working-tree state and any open decisions at the start of a session |
+
+Each has its own `settings.snippet.json` next to it (in the same `claude/`
+directory) showing the exact wiring. Both hooks read their one configurable
+value from an environment variable (`GATES_MAIN_BRANCH`,
+`GATES_OPEN_DECISIONS_FILE`) with a sensible default, rather than from a
+config file.
 
 ## Status
 
-This is a first extraction from a single origin project, done in one pass.
-Expect the extensions' property names and the exact file conventions to
-still move a little as a second and third consuming project exercise them.
-Semantic versioning starts in earnest once there's evidence beyond the
-original project that the shape is right — the `annotations` module
-especially, since `@Requirement`/`@RegisteredSuppression` end up scattered
-across a consuming project's test code, more expensive to change later than
-a Gradle property name.
+This is a first extraction from a single origin project, done in one pass —
+including this directory layout itself, reorganized once already (by
+subject matter first, technology second) after the initial technology-first
+cut turned out to obscure which pieces actually belonged together. Expect
+the extensions' property names and the exact file conventions to still move
+a little as a second and third consuming project exercise them. Semantic
+versioning starts in earnest once there's evidence beyond the original
+project that the shape is right — the `annotations` artifact especially,
+since `@Requirement`/`@RegisteredSuppression` end up scattered across a
+consuming project's test code, more expensive to change later than a Gradle
+property name.
 
 A fifth Claude Code skill — turning an idea into vertically-sliced,
 independently shippable pieces of work — is planned but deliberately not
