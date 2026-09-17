@@ -22,7 +22,13 @@ jobs:
       # what puts that path under CI.
       - name: build again, reusing the configuration cache
         run: |
-          ./gradlew build > second-run.log 2>&1 || { cat second-run.log; exit 1; }
+          # tee, not a plain redirect: a check whose own output never reaches the log leaves
+          # nothing to read afterwards -- the run either went green or it didn't, with no way
+          # to tell a real second build from one that somehow never happened.
+          # pipefail, because the runner's shell is `bash -e` without it: piping into tee would
+          # otherwise hand the step tee's exit code and swallow a failing build entirely.
+          set -o pipefail
+          ./gradlew build 2>&1 | tee second-run.log
           grep -q "Reusing configuration cache" second-run.log
         working-directory: gradle-plugin
 
