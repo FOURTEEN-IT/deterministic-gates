@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The requirementsCoverage and suppressionRegister gates load these annotations by name and
+ * The requirementsCoverage, suppressionRegister and criticality gates load these annotations by name and
  * reflect over them at build time (see the gradle-plugin module) -- retention must stay RUNTIME
  * or that reflection finds nothing, silently turning every gate green for the wrong reason.
  */
@@ -27,6 +27,21 @@ class AnnotationShapeTest {
         assertEquals(RetentionPolicy.RUNTIME,
                 RegisteredSuppression.class.getAnnotation(java.lang.annotation.Retention.class).value());
         assertEquals(Set.of(ElementType.TYPE, ElementType.METHOD), Set.of(targetOf(RegisteredSuppression.class)));
+    }
+
+    @Test
+    void criticalityIsRuntimeRetainedOnTypesAndMethods() {
+        assertEquals(RetentionPolicy.RUNTIME,
+                Criticality.class.getAnnotation(java.lang.annotation.Retention.class).value());
+        assertEquals(Set.of(ElementType.TYPE, ElementType.METHOD), Set.of(targetOf(Criticality.class)));
+    }
+
+    @Test
+    void criticalityCarriesALevelAndTheRequirementsJustifyingIt() throws NoSuchMethodException {
+        // The gate reads both by name off whatever annotation it is pointed at, so these two
+        // accessors are the contract -- renaming either breaks every consumer silently.
+        assertEquals(Criticality.Level.class, Criticality.class.getMethod("level").getReturnType());
+        assertTrue(Criticality.class.getMethod("requirements").getReturnType().isArray());
     }
 
     @Test

@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
-# Rejects a commit whose subject line isn't valid Conventional Commits format.
+# Rejects a commit whose subject line isn't valid Conventional Commits format -- and, when
+# configured, one whose type promises a release that the changed files can't possibly deliver.
 #
 # The allowed types are the Angular preset's, the same list
 # @semantic-release/commit-analyzer uses by default -- so if your release tooling follows that
 # convention, a commit this hook accepts is also one your tooling understands, and one it
 # rejects would otherwise fail silently (a misspelled type like "fixed:" is accepted as a
 # subject line, but semantic-release skips it: no release, no error).
+#
+# The second check is the mirror image of that failure, and needs one piece of project
+# knowledge this hook can't guess: which paths actually end up in the deployed artifact. Set it
+# and the hook rejects a releasing type (feat/fix/perf by default) whose staged files touch
+# none of them -- a release and a deploy that change nothing about the running application.
+# Leave it unset and only the format is checked.
+#
+#     git config gates.appPaths '^(src/main/|frontend/src/|build\.gradle\.kts$|Dockerfile$)'
+#     git config gates.releasingTypes 'feat|fix|perf'      # optional, this is the default
+#
+# git config rather than an environment variable, because this hook also runs from an IDE or a
+# GUI client, where an exported variable from someone's shell isn't there. GATES_APP_PATHS and
+# GATES_RELEASING_TYPES are read as a fallback for a CI shell that has no repo-local config.
 #
 # Installed by the `installGitHooks` Gradle task from this plugin, into .git/hooks/commit-msg.
 # Runs on the message file git passes as $1.
@@ -24,3 +38,30 @@ if [[ ! "$subject_line" =~ $pattern ]]; then
     echo "Expected: <type>(<scope>)?: <description>, type one of: ${allowed_types//|/, }" >&2
     exit 1
 fi
+
+app_paths="$(git config --get gates.appPaths || true)"
+app_paths="${app_paths:-${GATES_APP_PATHS:-}}"
+if [ -z "$app_paths" ]; then
+    exit 0
+fi
+
+releasing_types="$(git config --get gates.releasingTypes || true)"
+releasing_types="${releasing_types:-${GATES_RELEASING_TYPES:-feat|fix|perf}}"
+
+type="${subject_line%%[(!:]*}"
+if [[ ! "$type" =~ ^(${releasing_types})$ ]]; then
+    exit 0
+fi
+
+# --cached is the staged set, which is what this commit will contain. An empty diff (an
+# --allow-empty commit, say) can't touch an application path either, and is caught the same way.
+if git diff --cached --name-only | grep -Eq "$app_paths"; then
+    exit 0
+fi
+
+echo "commit-msg: \"${type}:\" is a releasing type, but no staged file matches this project's" >&2
+echo "application paths (gates.appPaths):" >&2
+echo "  $app_paths" >&2
+echo "A release and a deploy that change nothing about the running application." >&2
+echo "Check the type -- docs:/chore:/test:/refactor:/ci: are the non-releasing ones." >&2
+exit 1
