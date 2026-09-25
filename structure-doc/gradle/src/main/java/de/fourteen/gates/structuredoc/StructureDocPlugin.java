@@ -30,6 +30,14 @@ public class StructureDocPlugin implements Plugin<Project> {
                     t.setDescription("Checks that the architecture doc names no files that don't "
                             + "exist and mentions every domain type.");
                     t.getArchitectureDocFile().set(extension.getArchitectureDocFile());
+                    // The set of files the doc's filenames are checked against, assembled here at
+                    // configuration time so the task never has to reach for the project itself.
+                    t.getProjectFiles().from(project.fileTree(
+                            project.getLayout().getProjectDirectory(), tree -> {
+                                for (String ignored : StructureDocTask.IGNORED_DIRECTORIES) {
+                                    tree.exclude("**/" + ignored + "/**");
+                                }
+                            }));
                     t.getDomainModelDir().set(extension.getDomainModelDir());
                     t.getAllowedMissingNames().set(extension.getAllowedMissingNames());
                     t.getReportFile().convention(Reports.conventionFile(project, "structure-doc"));

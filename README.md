@@ -1,8 +1,8 @@
 # deterministic-gates
 
 Deterministic, judgment-free build gates for JVM projects — plus a small set
-of companion Claude Code skills and hooks — extracted from real use in a
-production project.
+of companion Claude Code skills and hooks — developed for real-world use,
+not as an academic exercise.
 
 ## The idea
 
@@ -28,8 +28,13 @@ Organized by subject matter first, technology second — a directory is
 
 ```
 adr/                     claude/                (skill)
+idea-clarification/      claude/                (skill)
 open-decisions/          claude/                (skill + hook)
 staged-verification/     claude/                (skill)
+tdd-implementation/      claude/                (skill)
+acceptance/              claude/                (skill + hook)
+demo-feedback/           claude/                (skill)
+feature-delivery/        claude/                (skill; orchestrates the above five)
 commit-discipline/       gradle/  claude/       (git hook install task + skill + 3 hooks)
 structure-doc/           gradle/
 requirements/            gradle/  annotations/  (three gates + @Requirement)
@@ -37,6 +42,7 @@ layer-disjointness/      gradle/
 test-layers/             gradle/
 suppression-register/    gradle/  annotations/  (gate + @RegisteredSuppression)
 criticality/             gradle/  annotations/  (gate + @Criticality)
+feature-slicing/         gradle/  claude/       (two gates + skill)
 ```
 
 Two more top-level directories hold no subject-matter content of their own,
@@ -75,6 +81,12 @@ observe.
 | `open-decisions/` | — | `open-decisions` skill, `session-start.sh` hook |
 | `adr/` | — | `adr` skill |
 | `staged-verification/` | — | `staged-verification` skill |
+| `feature-slicing/` | `sliceStructure`, `sliceCoverage` gates | `feature-slicing` skill |
+| `idea-clarification/` | — | `idea-clarification` skill |
+| `tdd-implementation/` | — | `tdd-implementation` skill |
+| `acceptance/` | — | `acceptance` skill, `acceptance-gate.sh` hook |
+| `demo-feedback/` | — | `demo-feedback` skill |
+| `feature-delivery/` | — | `feature-delivery` skill (orchestrates the five above) |
 
 `requirements/` and `commit-discipline/` are the only directories with more
 than one thing inside, and each time for a concrete, checked reason, not
@@ -101,7 +113,7 @@ bundle over it. `staged-verification` and `adr` reference nothing else.
 
 ## Gradle gates
 
-Eight gates, seven plugin ids, zero runtime dependencies beyond the JDK and the
+Ten gates, eight plugin ids, zero runtime dependencies beyond the JDK and the
 Gradle API — every gate here parses plain text, JUnit/JaCoCo XML (the JDK's
 own `javax.xml.parsers`) or reflects over compiled classes.
 
@@ -115,6 +127,8 @@ own `javax.xml.parsers`) or reflects over compiled classes.
 | `de.fourteen.gates.testlayers` | `testLayers {}` | `testLayers` | Every test method belongs to exactly one layer, and no named layer is empty — the assumption a tag-selected split silently rests on |
 | `de.fourteen.gates.suppressionregister` | `suppressionRegister {}` | `suppressionRegister` | Every test/mutation suppression in code has a matching, dated entry in a register, and vice versa |
 | `de.fourteen.gates.criticality` | `criticality {}` | `criticality` | Every criticality recorded in the code names requirement IDs that exist, and no level a build derives from is empty |
+| `de.fourteen.gates.featureslicing` | `featureSlicing {}` | `sliceStructure` | A feature's slice tree (see the `feature-slicing` skill) is numbered contiguously, each slice's status agrees with its actual folder structure, and each states a non-empty user-outcome statement |
+| | | `sliceCoverage` | Every leaf slice (no children of its own) is claimed by an annotated test method that actually passed — `requirementsCoverage`'s guarantee, pushed down to slice granularity |
 | `de.fourteen.gates.githooks` | — | `installGitHooks` | (not a gate — see below) |
 
 Each gate checks against a **fixed file convention**, documented below —
@@ -129,6 +143,12 @@ to `check` once its own required property is actually set (`domainModelDir`,
 `de.fourteen.gates.requirements` and configure only `featuresDir`, and only
 `featureDocs` runs. Applying a plugin and configuring nothing is a no-op,
 not a guaranteed build failure.
+
+`requirementsFile` alone doesn't decide this for the three requirements
+gates, since all three read it: `requirementsCoverage` additionally needs
+test classes (i.e. the `java` plugin, or `testClassesDirs` set by hand),
+`taggedRequirementsCoverage` needs `taggedSourceDirs`, and `featureDocs`
+needs `featuresDir`.
 
 `de.fourteen.gates.githooks` registers `installGitHooks`, a one-time opt-in
 task that copies a Conventional-Commits-checking `commit-msg` git hook into
@@ -179,6 +199,7 @@ plugins {
     id("de.fourteen.gates.testlayers") version "<tag>"
     id("de.fourteen.gates.suppressionregister") version "<tag>"
     id("de.fourteen.gates.criticality") version "<tag>"
+    id("de.fourteen.gates.featureslicing") version "<tag>"
     id("de.fourteen.gates.githooks") version "<tag>"
     // see "Consuming these plugins" below for what <tag> resolves against
 }
@@ -206,8 +227,13 @@ requirements {
 
 layerDisjointness {
     domainPackagePrefix.set("com/example/domain")
-    innerCoverageReportXml.set(layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml"))
-    outerCoverageReportXmls.from(layout.buildDirectory.file("reports/jacoco/integrationTest/report.xml"))
+    // Point these at the report *tasks*, not at the paths they happen to write to: a literal
+    // path carries no task dependency, so Gradle is free to run the gate before the reports
+    // exist -- and, since 8.x, refuses the build outright rather than judging a stale file.
+    innerCoverageReportXml.set(
+        tasks.named<JacocoReport>("jacocoTestReport").flatMap { it.reports.xml.outputLocation })
+    outerCoverageReportXmls.from(
+        tasks.named<JacocoReport>("jacocoIntegrationTestReport").flatMap { it.reports.xml.outputLocation })
 }
 
 testLayers {
@@ -232,6 +258,19 @@ criticality {
 pitest {
     targetClasses.set(criticality.classesAt("HIGH"))
 }
+
+featureSlicing {
+    // featuresDir is deliberately the same directory requirements.featuresDir points at above --
+    // a slice tree is rooted at the same feature docs, not a separate directory to configure twice.
+    featuresDir.set(layout.projectDirectory.dir("docs/features"))
+    // requirementAnnotationFqn defaults to de.fourteen.gates.annotations.Requirement, same as
+    // requirementsCoverage -- a leaf slice's ID is claimed the exact same way a requirement's is
+    // statusSectionName/statusLabel default to "Status"; allowedStatuses defaults to
+    // ["needs splitting", "ready for implementation"]
+    // userOutcomeSectionName defaults to "User Outcome" -- presence/non-emptiness checked only
+    // acceptanceCriteriaSectionName defaults to "Acceptance Criteria";
+    // unsplittabilityReviewThreshold defaults to 12 (a notice, not a failure, past this count)
+}
 ```
 
 Every property not shown above has a sensible convention-based default (see
@@ -240,6 +279,13 @@ the full list); `requirements`'s test-classes, test-results and classpath
 inputs for `requirementsCoverage` default to the `test` source set if the
 `java` plugin is applied, additively — add more with `.from(...)` for extra
 test suites (integration, contract, etc.).
+
+When you do add one, hand `testResultsDirs` the *task*, not the path it
+writes to — `.from(tasks.named<Test>("integrationTest"))` rather than
+`.from(layout.buildDirectory.dir("test-results/integrationTest"))`. The
+default for `test` is wired that way for the same reason: a literal path
+carries no task dependency, and a gate that reads test results before the
+tests have run is not a gate.
 
 ### The conventions, with an example row each
 
@@ -317,7 +363,13 @@ void aKnownFlakyTest() { ... }
 ```
 
 and expects a markdown table (again matched by shape, any heading text)
-whose first column names the suppressed class or `Class.method`:
+whose first column names the suppressed class or `Class.method`. A simple
+name is enough as long as one suppression answers to it; where two classes
+in different packages share a name, qualify it
+(`demo.domain.PaymentGateway.retry`) — an ambiguous row fails the gate
+rather than counting for both. Rows whose first column can't name a class or
+method at all are skipped, so an unrelated table in the same file doesn't
+turn into stale entries:
 
 ```
 | Suppressed            | Reason                       | Date       |
@@ -382,10 +434,72 @@ val adapterTest = tasks.register<Test>("adapterTest") {
 }
 ```
 
+**`sliceStructure` / `sliceCoverage`** read a slice tree rooted at each
+top-level feature doc under `featuresDir` (see the `feature-slicing` skill):
+a slice doc `N.md` may have a same-named sibling directory `N/` holding its
+own numbered children, recursively:
+
+```
+docs/features/
+  4.2.md
+  4.2/
+    1.md    <- ## Status \n\n **Status:** needs splitting
+    1/
+      1.md  <- ## Status \n\n **Status:** ready for implementation
+      2.md  <- ## Status \n\n **Status:** ready for implementation
+    2.md    <- ## Status \n\n **Status:** ready for implementation
+```
+
+`sliceStructure` requires numbering under each directory to be contiguous
+from 1 (no gaps, no duplicates), and requires each slice doc's `Status`
+section to state exactly one of `allowedStatuses` — `needsSplittingStatus`
+("needs splitting" by default) only where a child directory actually exists,
+any other status (e.g. "ready for implementation") only where none does.
+
+It also requires a non-empty `userOutcomeSectionName` section ("User
+Outcome" by default) on every slice — a one-line statement of what a user
+(or another system) can do once that slice is implemented that they
+couldn't before:
+
+```
+## User Outcome
+
+A player can enter a room code and join the room.
+```
+
+Only the section's *presence* is checked, never its content — whether the
+statement actually holds up (and so whether the slice is really vertical)
+stays a human/skill judgment call; see the `feature-slicing` skill for why
+this statement is the intended proxy for that judgment.
+
+Separately, `sliceStructure` counts each slice's numbered `Acceptance
+Criteria` lines (same convention `featureDocs` uses) and, past
+`unsplittabilityReviewThreshold` (12 by default), adds a *notice* to its
+report rather than failing — a slice with that many criteria isn't
+necessarily still splittable, but it's worth a second look, and neither
+this gate nor any other in this repo can check unsplittability directly.
+
+`sliceCoverage` then requires every *leaf* slice (one with no children of
+its own — `4.2.1.1`, `4.2.1.2` and `4.2.2` above, not `4.2.1`) to be claimed
+by a passed test annotated with its own ID, the same marker annotation
+`requirementsCoverage` uses:
+
+```java
+import de.fourteen.gates.annotations.Requirement;
+
+@Test
+@Requirement("4.2.1.1")
+void aPlayerCanEnterARoomCode() { ... }
+```
+
+A feature that hasn't been sliced at all yet (no directory next to its
+`.md` file) needs no leaf-slice coverage — it's still covered, if at all, by
+`requirementsCoverage` at the requirement-ID level.
+
 ### Consuming these plugins
 
 This repository doesn't publish to the Gradle Plugin Portal (yet — see
-[Status](#status)). All seven plugin ids come from the same `gradle-plugin/`
+[Status](#status)). All eight plugin ids come from the same `gradle-plugin/`
 build, so one dependency resolution covers all seven. Until published:
 
 1. **JitPack** (least setup): add `maven("https://jitpack.io")` to
@@ -433,9 +547,12 @@ the change deserves a release at all.
 ## Using the Claude Code plugins
 
 Point Claude Code at one of `adr/claude/`, `open-decisions/claude/`,
-`staged-verification/claude/` or `commit-discipline/claude/` as a plugin
-directory (locally, or once published, via a marketplace) to get that
-directory's skill — install as many or as few as you want.
+`staged-verification/claude/`, `commit-discipline/claude/`,
+`feature-slicing/claude/`, `idea-clarification/claude/`,
+`tdd-implementation/claude/`, `acceptance/claude/`, `demo-feedback/claude/`
+or `feature-delivery/claude/` as a plugin directory (locally, or once
+published, via a marketplace) to get that directory's skill — install as
+many or as few as you want.
 
 To use a hook, copy its script into your project and wire it in
 `.claude/settings.json`:
@@ -446,30 +563,172 @@ To use a hook, copy its script into your project and wire it in
 | `finish-the-work.sh` | `commit-discipline/claude/hooks/` | `Stop` | At the end of an answer: an unclean working tree, or commits sitting ahead of the upstream, block the stop once — finish it, commit it, push it |
 | `watch-pipeline.sh` | `commit-discipline/claude/hooks/` | `PostToolUse` (Bash, async) | After a push, watches that commit's GitHub Actions runs and reports back exactly once, green or red, naming the failing step |
 | `session-start.sh` | `open-decisions/claude/hooks/` | `SessionStart` | Surfaces working-tree state and any open decisions at the start of a session |
+| `acceptance-gate.sh` | `acceptance/claude/hooks/` | `PreToolUse` (Bash) | Blocks a feat/fix commit that stages a featuresDir doc without that doc's "Accepted: yes" line |
 
 Each directory has its own `settings.snippet.json` (in the same `claude/`
 directory) showing the exact wiring for all of its hooks. They read their
 configurable values from environment variables (`GATES_MAIN_BRANCH`,
-`GATES_VERIFY_COMMAND`, `GATES_OPEN_DECISIONS_FILE`) with sensible defaults,
-rather than from a config file. `watch-pipeline.sh` needs no configuration,
-but it does need `curl`, `jq` and a GitHub `origin`; `GH_TOKEN`/`GITHUB_TOKEN`
-lifts the unauthenticated rate limit. `finish-the-work.sh` is the one hook
-here that deliberately interrupts: wire it only where finished work is
-supposed to reach the remote by itself.
+`GATES_VERIFY_COMMAND`, `GATES_OPEN_DECISIONS_FILE`, `GATES_FEATURES_DIR`)
+with sensible defaults, rather than from a config file. `watch-pipeline.sh`
+needs no configuration, but it does need `curl`, `jq` and a GitHub `origin`;
+`GH_TOKEN`/`GITHUB_TOKEN` lifts the unauthenticated rate limit.
+`finish-the-work.sh` is the one hook here that deliberately interrupts: wire
+it only where finished work is supposed to reach the remote by itself.
+
+## Development process
+
+The gates and skills above aren't independent tools bolted together; they're
+meant to support one flow, from a raw feature idea to a shipped, verified
+feature. `feature-delivery` is the recommended entry point for actually
+running it — it chains the five steps below on its own, launching each as
+its own subagent rather than inline, so that a customer only ever sees two
+of them (idea clarification, and each round of demo and feedback), and so
+that its own context doesn't fill up with the slice-tree/code/gate-output
+detail those subagents produce along the way. The five steps themselves:
+
+1. **Idea clarification** — before anything is cut into slices, the
+   `idea-clarification` skill interrogates the idea itself, one question at
+   a time: target user, scope boundary, success criterion, assumptions and
+   risks, and criticality, then keeps asking past that fixed minimum as
+   long as it can point to a genuine gap. Its job is to surface gaps while
+   they're still cheap to close, not after a slice has already been cut
+   around a wrong assumption. It then writes the resulting top-level
+   feature doc itself (assigning the next free requirements-register ID)
+   rather than leaving the clarified answers to only exist in the
+   conversation that produced them — see the skill for why.
+
+2. **Vertical slicing** — the clarified idea is cut into small, atomic,
+   independently shippable vertical slices — each one a complete path
+   through the system, not a horizontal layer. The `feature-slicing` skill
+   and its companion `sliceStructure`/`sliceCoverage` gates (see
+   [What's inside](#whats-inside)) do this today:
+
+   - A top-level feature is one entry in the existing requirements register
+     (e.g. requirement `4.2`), documented in full up front by the
+     idea-clarification skill above, before any slicing starts.
+   - The slicing skill takes that feature and cuts it, one level at a time,
+     into slices — each slice gets its own doc, one folder level deeper and
+     numbered from its parent (`4.2/1/`, then `4.2/1/2/`, ...), the same
+     nesting repeating at every level a slice needs splitting further.
+   - Only the *first* slice at any level is ever examined: is it vertical,
+     and is it still worth splitting further? If a candidate cut isn't
+     vertical, that level isn't done — cut again. If it is vertical but
+     still splittable, it's split again, one level deeper. This repeats
+     until a vertical slice is reached that can't be split further —
+     vertical-and-unsplittable is the stopping condition, not a size
+     threshold. Sibling slices at every level are left untouched until the
+     first slice has been carried all the way through — split, implemented
+     (step 3), accepted (step 4), and demoed for feedback (step 5) — before
+     the next sibling is even looked at. That's not just sequencing: step 5
+     is exactly what makes waiting worthwhile, since it can still edit or
+     reorder those untouched siblings, or insert a new one between them,
+     while they're still just docs.
+   - Every slice, leaf or not, states a **User Outcome**: a one-line
+     statement of what a user (or another system) can now do that they
+     couldn't before. Writing it is the skill's proxy for judging
+     verticality — a cut where no honest, specific statement can be written
+     probably isn't vertical.
+   - **Open point:** how "vertical" gets checked deterministically isn't
+     fully decided yet. `sliceStructure` checks that the `User Outcome`
+     section exists and isn't empty, but never whether its *content* holds
+     up — a hand-waved or generic statement passes the same as a specific
+     one. Whether the cut actually is vertical stays the skill's (or a
+     human's) judgment call.
+   - **Open point:** how "unsplittable" gets checked deterministically isn't
+     decided either. `sliceStructure` verifies that a slice's `Status`
+     matches what's on disk (no children where "ready", children where
+     "needs splitting"), but that only checks the status *label* is
+     consistent — it never verifies that a slice marked "ready" actually
+     *is* unsplittable. It does flag slices past a configurable acceptance-
+     criteria count as worth a second look (a notice, not a failure), but
+     that's a heuristic prompt, not proof: a slice far too large to
+     implement in one sitting, mislabeled "ready" and just under the
+     threshold, still passes the gate exactly the same as a genuinely
+     minimal one.
+
+   The `sliceStructure` and `sliceCoverage` gates check what *can* already
+   be checked deterministically without solving either open point above:
+
+   - `sliceStructure` — the slice folder/numbering scheme is consistent (no
+     gaps, each slice's number matches its position under its parent), and
+     each slice doc's status ("needs splitting" vs. "ready for
+     implementation") matches what the folder structure actually shows — a
+     "ready" slice with child slices already underneath it, or a "needs
+     splitting" slice with none, is a contradiction the gate rejects;
+   - `sliceCoverage` — `requirementsCoverage`'s check extended down to slice
+     granularity: a leaf slice (no children, "ready for implementation")
+     needs a passing test that references *that slice's* ID, not just the
+     top-level requirement's — the same no-gap guarantee `requirementsCoverage`
+     already gives at the requirement level, pushed one level further down
+     so a slice can't quietly stay unimplemented once its parent requirement
+     shows covered.
+
+   See [Gradle gates](#gradle-gates) for the exact convention both check
+   against.
+
+3. **TDD implementation** — the `tdd-implementation` skill finds the first
+   open leaf slice (lowest-numbered, `ready for implementation`, not yet
+   covered per `sliceCoverage`) and drives it through red/green/refactor,
+   one `Acceptance Criteria` line at a time — not all tests up front, not
+   the whole slice in one pass. `staged-verification` is the supporting
+   check-order this loop runs after every green and refactor step (compile,
+   then unit/domain tests, then architecture tests, then the full check,
+   stopping at the first red stage); it doesn't drive the test-first cycle
+   itself, `tdd-implementation` does. A slice counts as done only once
+   every criterion has a passing, `@Requirement`-annotated test *and*
+   `sliceStructure`/`sliceCoverage` actually pass — not just once tests are
+   locally green. The skill then updates the slice doc's `Implemented In`
+   field and stops; handing off to the next sibling slice or to acceptance
+   is left to whoever invoked it.
+
+4. **Acceptance against the original description** — the `acceptance` skill
+   checks the finished slice back against what was actually asked for, not
+   only against the tests written for it: does it match the doc's
+   `Motivation`, `Acceptance Criteria`, `Scenarios` and `User Outcome`, or
+   did the implementation quietly narrow, widen or reinterpret them along
+   the way. `featureDocs`/`sliceStructure` are different, narrower checks —
+   they only enforce that a doc follows the required structure, never that
+   the implementation matches what it says. This step is triggered by its
+   companion `acceptance-gate.sh` hook, which blocks a `fix`/`feat` commit
+   (the two Conventional-Commits types that actually change behavior) from
+   going through at all while a staged featuresDir doc lacks the skill's
+   `**Accepted:** yes` line — reusing the same commit-type signal
+   `installGitHooks`'s `commit-msg` hook already parses, but enforced
+   *before* the commit rather than only observed after. Like every other
+   structural check here, the hook confirms the marker's presence, never
+   that the judgment behind it was done honestly — that stays the skill's.
+
+5. **Demo and feedback** — right after acceptance, the `demo-feedback`
+   skill launches the app and drives it through the slice's own scenarios
+   live, in a real browser, then asks targeted follow-up questions: does
+   the real thing match the `User Outcome` as written, does anything about
+   the *next* planned slices need to change now that this one is real, did
+   anything unanticipated surface. Whatever comes back is folded straight
+   into the docs of sibling slices that haven't been split further yet —
+   edited in place, or inserted as a brand-new sibling between existing
+   ones — never into a slice already implemented. This is the actual reason
+   step 2 only ever looks at the first slice at any level: the untouched
+   siblings are exactly where this feedback still has somewhere cheap to
+   land. Only once no untouched sibling exists anywhere does the feedback
+   fall back to the top-level feature doc's `Open Questions`.
+
+All five steps exist today: their skills, step 2's two gates, and step 4's
+companion hook.
 
 ## Status
 
-This is a first extraction from a single origin project, done in one pass —
-including this directory layout itself, reorganized once already (by
+This is an early, first-pass version of this layout, done in one pass —
+including the directory structure itself, reorganized once already (by
 subject matter first, technology second) after the initial technology-first
-cut turned out to obscure which pieces actually belonged together. Expect
+cut turned out to obscure which pieces actually belonged together. This has
+not yet been battle-tested across multiple consuming projects, so expect
 the extensions' property names and the exact file conventions to still move
 a little as a second and third consuming project exercise them. Semantic
-versioning starts in earnest once there's evidence beyond the original
-project that the shape is right — the `annotations` artifact especially,
-since `@Requirement`/`@RegisteredSuppression`/`@Criticality` end up scattered
-across a consuming project's code, more expensive to change later than a
-Gradle property name.
+versioning starts in earnest once there's evidence from more than one
+consuming project that the shape is right — the `annotations` artifact
+especially, since `@Requirement`/`@RegisteredSuppression`/`@Criticality` end
+up scattered across a consuming project's code, more expensive to change
+later than a Gradle property name.
 
 The second extraction pass from that same origin project added `criticality`,
 `testLayers`, the commit-msg hook's application-path check and the two
@@ -479,11 +738,27 @@ first is an ArchUnit rule plus a build-script provider, and the second didn't
 exist as a check at all — the failure it catches (a test in no layer, silently
 never run) had been found there by hand.
 
-A fifth Claude Code skill — turning an idea into vertically-sliced,
-independently shippable pieces of work — is planned but deliberately not
-included yet; its design is still being worked out.
+Six more Claude Code skills are now included, completing the whole
+development-process chain end to end: `idea-clarification`, which
+interviews a raw feature idea and writes the resulting top-level feature
+doc; `feature-slicing`, which turns that doc into vertically-sliced,
+independently shippable pieces of work, along with its companion
+`sliceStructure`/`sliceCoverage` Gradle gates; `tdd-implementation`, which
+drives one leaf slice through red/green/refactor, one acceptance criterion
+at a time; `acceptance`, which checks the finished slice back against its
+doc and, via its companion `acceptance-gate.sh` hook, blocks a `fix`/`feat`
+commit until that check has actually been done; `demo-feedback`, which
+demos the accepted slice live and folds what comes back into the sibling
+slices no one has cut further yet — the actual reason `feature-slicing`
+only ever looks at the first slice at any level; and `feature-delivery`,
+which chains all five of the above into the one loop a customer actually
+interacts with — idea clarification once, then a demo-and-feedback round
+per finished slice, nothing else surfaced to them, and every step run as
+its own subagent so none of their internal detail lingers in
+`feature-delivery`'s own context either. See
+[Development process](#development-process) for where all six fit.
 
 ## License
 
-Apache 2.0 with the Commons Clause — see [LICENSE](LICENSE). In short: free
-to use, modify and redistribute, not to sell as a standalone product.
+Apache 2.0 — see [LICENSE](LICENSE). Free to use, modify, redistribute and
+build on, commercially included.

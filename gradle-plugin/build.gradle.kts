@@ -31,6 +31,7 @@ sourceSets {
             srcDir("../commit-discipline/gradle/src/main/java")
             srcDir("../criticality/gradle/src/main/java")
             srcDir("../test-layers/gradle/src/main/java")
+            srcDir("../feature-slicing/gradle/src/main/java")
         }
         resources {
             srcDir("../commit-discipline/gradle/src/main/resources")
@@ -43,6 +44,7 @@ sourceSets {
             srcDir("../suppression-register/gradle/src/test/java")
             srcDir("../criticality/gradle/src/test/java")
             srcDir("../test-layers/gradle/src/test/java")
+            srcDir("../feature-slicing/gradle/src/test/java")
         }
     }
 }
@@ -57,14 +59,16 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-// Seven plugin ids, not one: structureDoc, layerDisjointness, suppressionRegister, criticality
+// Eight plugin ids, not one: structureDoc, layerDisjointness, suppressionRegister, criticality
 // and testLayers check unrelated things and can be adopted independently; requirementsCoverage,
 // taggedRequirementsCoverage and featureDocs stay together in "requirements" because all three
 // read the same requirements register through the same parser (see
 // requirements/RequirementsExtension.java) -- splitting those three further would mean
 // duplicating that parser instead of sharing it. criticality reads that register too, through
 // the same shared parser, but stands alone because its other half -- the level recorded at the
-// code, and the target set derived from it -- is useful with no register in sight.
+// code, and the target set derived from it -- is useful with no register in sight. sliceStructure
+// and sliceCoverage stay together in "featureSlicing" for the same reason as "requirements": both
+// read the same slice tree under featuresDir (see feature-slicing/FeatureSlicingExtension.java).
 gradlePlugin {
     plugins {
         create("structureDoc") {
@@ -114,11 +118,30 @@ gradlePlugin {
             displayName = "Deterministic Gates: gitHooks"
             description = "Installs a Conventional-Commits-checking commit-msg git hook."
         }
+        create("featureSlicing") {
+            id = "de.fourteen.gates.featureslicing"
+            implementationClass = "de.fourteen.gates.featureslicing.FeatureSlicingPlugin"
+            displayName = "Deterministic Gates: featureSlicing"
+            description = "Checks that a feature's slice tree stays numbered consistently, " +
+                "that each slice's status agrees with its folder structure, and that every " +
+                "leaf slice is covered by a passed, annotated test."
+        }
     }
 }
 
 tasks.test {
     useJUnitPlatform()
+
+    // The functional tests build real consumer projects that need JUnit on *their* test
+    // classpath. Handing them the jars this build already resolved keeps those fixtures off the
+    // network: a gate test that can fail because a repository rate-limits isn't a gate test.
+    val junitJars = configurations.testRuntimeClasspath.map { classpath ->
+        classpath.files.filter { jar ->
+            listOf("junit", "opentest4j", "apiguardian").any { jar.name.startsWith(it) }
+        }.joinToString(File.pathSeparator) { it.absolutePath }
+    }
+    inputs.property("junitFixtureClasspath", junitJars)
+    doFirst { systemProperty("gates.junitClasspath", junitJars.get()) }
 }
 
 tasks.named("check") {
