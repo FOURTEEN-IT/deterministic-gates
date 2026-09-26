@@ -1,6 +1,13 @@
 ---
 name: feature-slicing
 description: Use when a feature doc under featuresDir needs to be cut into small, atomic, vertical slices before implementation starts, or when the first not-yet-implemented slice under an existing feature needs to be re-examined for size and verticality. Not for writing the top-level feature doc itself (that's the idea-clarification skill) and not for implementing a slice once it's small enough (that's the TDD-implementation skill).
+hooks:
+  Stop:
+    - hooks:
+        - type: command
+          command: "\"${CLAUDE_SKILL_DIR}\"/scripts/slice-structure-check.sh"
+          timeout: 30
+          statusMessage: "Checking slice structure"
 ---
 
 # Feature Slicing
@@ -112,6 +119,15 @@ eagerly, before any of that feedback exists, is just re-doing feature
 decomposition on guesses, one level lower.
 
 ## Relationship to the companion gates
+
+This skill also registers its own `Stop` hook
+(`scripts/slice-structure-check.sh`, wired via this file's own frontmatter,
+so it's only active for a session that actually invoked this skill) — a
+deliberate duplicate of the `sliceStructure` gate's structural checks below,
+so the slice tree gets checked even without Gradle in the loop, e.g. for a
+domain expert running this skill on its own. Where the Gradle plugin is
+applied, `sliceStructure` stays the authoritative check; this hook is only
+an early, local echo of it and can drift from it over time.
 
 The `de.fourteen.gates.featureslicing` Gradle plugin's `sliceStructure` and
 `sliceCoverage` gates (see the deterministic-gates README) catch what
