@@ -1,0 +1,11 @@
+{
+  "name": "demo-feedback",
+  "description": "Demos a just-accepted slice live and folds what a real reaction reveals into the sibling slices no one has cut further yet, while they're still just docs.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/demo-feedback"
+  ]
+}

@@ -42,7 +42,7 @@ layer-disjointness/      gradle/
 test-layers/             gradle/
 suppression-register/    gradle/  annotations/  (gate + @RegisteredSuppression)
 criticality/             gradle/  annotations/  (gate + @Criticality)
-feature-slicing/         gradle/  claude/       (two gates + skill)
+feature-slicing/         gradle/  claude/       (two gates + skill + hook)
 ```
 
 Two more top-level directories hold no subject-matter content of their own,
@@ -81,7 +81,7 @@ observe.
 | `open-decisions/` | — | `open-decisions` skill, `session-start.sh` hook |
 | `adr/` | — | `adr` skill |
 | `staged-verification/` | — | `staged-verification` skill |
-| `feature-slicing/` | `sliceStructure`, `sliceCoverage` gates | `feature-slicing` skill |
+| `feature-slicing/` | `sliceStructure`, `sliceCoverage` gates | `feature-slicing` skill, `slice-structure-check.sh` hook |
 | `idea-clarification/` | — | `idea-clarification` skill |
 | `tdd-implementation/` | — | `tdd-implementation` skill |
 | `acceptance/` | — | `acceptance` skill, `acceptance-gate.sh` hook |
@@ -554,9 +554,6 @@ or `feature-delivery/claude/` as a plugin directory (locally, or once
 published, via a marketplace) to get that directory's skill — install as
 many or as few as you want.
 
-To use a hook, copy its script into your project and wire it in
-`.claude/settings.json`:
-
 | Hook | Lives at | Event | Does |
 |------|----------|-------|------|
 | `main-branch-rule.sh` | `commit-discipline/claude/hooks/` | `PreToolUse` (Bash) | Blocks creating a new branch/worktree; blocks a commit whose branch is behind its upstream |
@@ -564,10 +561,30 @@ To use a hook, copy its script into your project and wire it in
 | `watch-pipeline.sh` | `commit-discipline/claude/hooks/` | `PostToolUse` (Bash, async) | After a push, watches that commit's GitHub Actions runs and reports back exactly once, green or red, naming the failing step |
 | `session-start.sh` | `open-decisions/claude/hooks/` | `SessionStart` | Surfaces working-tree state and any open decisions at the start of a session |
 | `acceptance-gate.sh` | `acceptance/claude/hooks/` | `PreToolUse` (Bash) | Blocks a feat/fix commit that stages a featuresDir doc without that doc's "Accepted: yes" line |
+| `slice-structure-check.sh` | `feature-slicing/claude/skills/feature-slicing/scripts/` | `Stop` | A local, JVM-free duplicate of the `sliceStructure` gate's structural checks (numbering, Status, User Outcome) — see below |
 
-Each directory has its own `settings.snippet.json` (in the same `claude/`
-directory) showing the exact wiring for all of its hooks. They read their
-configurable values from environment variables (`GATES_MAIN_BRANCH`,
+Installing a directory as a Claude Code plugin (as described above) wires
+its hooks automatically — each one ships a `hooks/hooks.json` at its plugin
+root, Claude Code's own default location for a plugin's hooks, loaded and
+activated the moment the plugin is enabled. No `.claude/settings.json`
+edit needed.
+
+`slice-structure-check.sh` is wired differently from the rest: it's declared
+in the `feature-slicing` skill's own SKILL.md frontmatter rather than in a
+plugin-wide `hooks/hooks.json`, so it only activates for a session that
+actually invoked that skill, and never for a session that didn't. That
+makes the `feature-slicing` skill (plus this structural check) usable on
+its own — by a domain expert who never runs `./gradlew check` — without
+needing the `de.fourteen.gates.featureslicing` Gradle plugin at all. It's a
+deliberate duplicate of `sliceStructure`'s logic, not a replacement: where
+the Gradle gate is applied, that stays the authoritative check, and this
+hook is only an early, local echo of it that can drift from it over time.
+
+If you'd rather copy a script directly into your own project instead of
+installing the plugin, each directory's `settings.snippet.json` (in the
+same `claude/` directory) shows the equivalent manual wiring for
+`.claude/settings.json`. Either way, the hooks read their configurable
+values from environment variables (`GATES_MAIN_BRANCH`,
 `GATES_VERIFY_COMMAND`, `GATES_OPEN_DECISIONS_FILE`, `GATES_FEATURES_DIR`)
 with sensible defaults, rather than from a config file. `watch-pipeline.sh`
 needs no configuration, but it does need `curl`, `jq` and a GitHub `origin`;

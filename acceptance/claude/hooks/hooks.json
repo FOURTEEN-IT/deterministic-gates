@@ -1,0 +1,18 @@
+{
+  "description": "Blocks a feat/fix commit that stages a featuresDir doc without that doc's 'Accepted: yes' line. Configure via GATES_FEATURES_DIR.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/acceptance-gate.sh",
+            "timeout": 30,
+            "statusMessage": "Checking feature/slice acceptance before commit"
+          }
+        ]
+      }
+    ]
+  }
+}

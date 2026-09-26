@@ -1,0 +1,11 @@
+{
+  "name": "idea-clarification",
+  "description": "Interrogates a raw feature idea one question at a time before any slicing starts, then writes the resulting top-level feature doc and requirements-register entry itself.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/idea-clarification"
+  ]
+}

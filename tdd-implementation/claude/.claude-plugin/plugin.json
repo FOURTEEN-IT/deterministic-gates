@@ -1,0 +1,11 @@
+{
+  "name": "tdd-implementation",
+  "description": "Drives the first open leaf slice through red/green/refactor, one Acceptance Criteria line at a time, until every criterion has a passing, annotated test.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/tdd-implementation"
+  ]
+}

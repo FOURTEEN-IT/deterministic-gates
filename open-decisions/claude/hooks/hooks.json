@@ -1,0 +1,17 @@
+{
+  "description": "Surfaces working-tree state and any open decisions at the start of a session. Configure via GATES_OPEN_DECISIONS_FILE.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start.sh",
+            "timeout": 15,
+            "statusMessage": "Reading working state and open decisions"
+          }
+        ]
+      }
+    ]
+  }
+}
