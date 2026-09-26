@@ -1,0 +1,46 @@
+{
+  "description": "Branch/commit rules, pipeline watching and finish-the-work checks for the commit-discipline plugin. Configure via GATES_MAIN_BRANCH and GATES_VERIFY_COMMAND; watch-pipeline.sh needs no configuration but does need curl, jq and a GitHub origin.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/main-branch-rule.sh",
+            "timeout": 30,
+            "statusMessage": "Checking branch/commit rules"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/watch-pipeline.sh",
+            "asyncRewake": true,
+            "timeout": 1800,
+            "statusMessage": "Watching the pipeline",
+            "rewakeMessage": "The pipeline watcher reports on this push:",
+            "rewakeSummary": "Pipeline watched"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/finish-the-work.sh",
+            "timeout": 30,
+            "statusMessage": "Checking the working tree"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "acceptance",
+  "description": "Checks a finished feature/slice back against its doc's Motivation, Acceptance Criteria, Scenarios and User Outcome, and blocks a feat/fix commit until that check is recorded.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/acceptance"
+  ]
+}

@@ -554,9 +554,6 @@ or `feature-delivery/claude/` as a plugin directory (locally, or once
 published, via a marketplace) to get that directory's skill — install as
 many or as few as you want.
 
-To use a hook, copy its script into your project and wire it in
-`.claude/settings.json`:
-
 | Hook | Lives at | Event | Does |
 |------|----------|-------|------|
 | `main-branch-rule.sh` | `commit-discipline/claude/hooks/` | `PreToolUse` (Bash) | Blocks creating a new branch/worktree; blocks a commit whose branch is behind its upstream |
@@ -565,9 +562,17 @@ To use a hook, copy its script into your project and wire it in
 | `session-start.sh` | `open-decisions/claude/hooks/` | `SessionStart` | Surfaces working-tree state and any open decisions at the start of a session |
 | `acceptance-gate.sh` | `acceptance/claude/hooks/` | `PreToolUse` (Bash) | Blocks a feat/fix commit that stages a featuresDir doc without that doc's "Accepted: yes" line |
 
-Each directory has its own `settings.snippet.json` (in the same `claude/`
-directory) showing the exact wiring for all of its hooks. They read their
-configurable values from environment variables (`GATES_MAIN_BRANCH`,
+Installing a directory as a Claude Code plugin (as described above) wires
+its hooks automatically — each one ships a `hooks/hooks.json` at its plugin
+root, Claude Code's own default location for a plugin's hooks, loaded and
+activated the moment the plugin is enabled. No `.claude/settings.json`
+edit needed.
+
+If you'd rather copy a script directly into your own project instead of
+installing the plugin, each directory's `settings.snippet.json` (in the
+same `claude/` directory) shows the equivalent manual wiring for
+`.claude/settings.json`. Either way, the hooks read their configurable
+values from environment variables (`GATES_MAIN_BRANCH`,
 `GATES_VERIFY_COMMAND`, `GATES_OPEN_DECISIONS_FILE`, `GATES_FEATURES_DIR`)
 with sensible defaults, rather than from a config file. `watch-pipeline.sh`
 needs no configuration, but it does need `curl`, `jq` and a GitHub `origin`;
