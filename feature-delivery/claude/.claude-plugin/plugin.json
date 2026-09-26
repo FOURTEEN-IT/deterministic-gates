@@ -1,0 +1,11 @@
+{
+  "name": "feature-delivery",
+  "description": "Chains idea-clarification, feature-slicing, tdd-implementation, acceptance and demo-feedback into the one loop a customer actually interacts with, each step run as its own subagent.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/feature-delivery"
+  ]
+}

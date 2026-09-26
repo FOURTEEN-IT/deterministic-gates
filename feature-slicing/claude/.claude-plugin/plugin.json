@@ -1,0 +1,11 @@
+{
+  "name": "feature-slicing",
+  "description": "Cuts a feature doc into small, atomic, vertical slices one level at a time, always working the first not-yet-implemented slice before touching any sibling.",
+  "version": "0.1.0",
+  "author": {
+    "name": "FOURTEEN-IT"
+  },
+  "skills": [
+    "./skills/feature-slicing"
+  ]
+}
